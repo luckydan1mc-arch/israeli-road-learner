@@ -330,8 +330,9 @@ function onFilter(){if(typeof renderRegions==="function"&&!$("regionPanel").hidd
  const ml=$("sMasterLbl");if(ml)ml.textContent=subject==="junctions"?"צמתים בשליטה":subject==="both"?"כבישים וצמתים בשליטה":"כבישים בשליטה";renderQmode();}
 
 /* ---------- map ---------- */
-const map=L.map("map",{preferCanvas:true,zoomSnap:.5}).setView([31.6,35.0],8);
+// one shared canvas for every clickable shape (roads, junction points): a second canvas on top would swallow clicks
 const canvas=L.canvas({tolerance:8});
+const map=L.map("map",{preferCanvas:true,renderer:canvas,zoomSnap:.5}).setView([31.6,35.0],8);
 const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
 /* Google-like light vector map (OpenFreeMap "Liberty"); falls back to Esri streets if vector maps are unavailable */
 let vec=null,labelsOn=true;
