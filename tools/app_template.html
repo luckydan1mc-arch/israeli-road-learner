@@ -105,6 +105,9 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
 .lbl{background:none;border:none}
 .jlbl{background:none;border:none}
 .jlbl span{position:absolute;left:0;top:0;transform:translate(-50%,-150%);background:#d93025;color:#fff;font:700 13px/1.3 "Assistant",system-ui,sans-serif;padding:2px 8px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.jlbl span.other{background:rgba(255,255,255,.95);color:#1b221e;font-weight:600;font-size:12px;border:1px solid rgba(0,0,0,.2);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.jlbl span::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:inherit}
+.jlbl span{border-top-color:#d93025}.jlbl span.other{border-top-color:rgba(255,255,255,.95)}
 .jshields{display:flex;flex-wrap:wrap;gap:4px}
 .rlbl{background:none;border:none}
 .rlbl span{position:absolute;left:0;top:0;display:inline-block;transform:translate(-50%,-50%);background:rgba(255,255,255,.92);color:#1b221e;font:700 12px/1.3 "Assistant",system-ui,sans-serif;padding:2px 7px;border-radius:5px;border:1px solid rgba(0,0,0,.25);white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25)}
@@ -562,7 +565,7 @@ function answer(i){const q=Q.qs[Q.i];if(Q.res.length>Q.i||q.t==="click"||q.t==="
  document.querySelectorAll(".opt").forEach((b,j)=>{b.disabled=true;if(q.opts[j].ok)b.classList.add("right");else if(j===i)b.classList.add("wrong");});finish(ok,"");}
 function finish(ok,extra){const q=Q.qs[Q.i];
  if(q.j){Q.res.push(ok);markJ(q.j.id,ok);hideAnswers(false);const j=q.j;
-  if(q.t==="jclick"){jLayer.eachLayer(l=>{if(l.getLatLng){const id=q.set.find(x=>x.p[0]===l.getLatLng().lat&&x.p[1]===l.getLatLng().lng);if(id&&id.id!==j.id)l.bindTooltip(id.name,{permanent:true,direction:"top",opacity:.85});}});
+  if(q.t==="jclick"){q.set.forEach(x=>{if(x.id!==j.id)jLayer.addLayer(L.marker(x.p,{interactive:false,keyboard:false,icon:L.divIcon({className:"jlbl",html:`<span class="other">${x.name}</span>`,iconSize:[0,0]})}));});
    reqRoads(j).forEach(n=>selLayer.addLayer(L.polyline(byN[n].g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false})));
    jLayer.addLayer(L.circleMarker(j.p,{radius:9,color:"#ffffff",weight:3,fillColor:"#d93025",fillOpacity:1}));jLayer.addLayer(L.marker(j.p,{interactive:false,icon:L.divIcon({className:"jlbl",html:`<span>${j.name}</span>`,iconSize:[0,0]})}));}
   else showJunction(j,{zoom:13});
