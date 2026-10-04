@@ -36,6 +36,9 @@ header.board{background:var(--sign);color:var(--sign-fg);border-radius:10px;padd
 .tab,.chip,.seg button{font:inherit;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--fg);padding:7px 15px;border-radius:999px;cursor:pointer}
 .chip{padding:5px 12px;font-size:.9rem}
 .regs{display:flex;flex-wrap:wrap;gap:6px}
+.main.picking #view-study,.main.picking #view-quiz,.main.picking #view-rules{display:none!important}
+#regionPanel .chip{font-size:.85rem;padding:4px 10px}
+#regionPanel{position:relative}
 #regionBtn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip small{font-weight:400;color:var(--muted);margin-inline-start:4px}
 .tab[aria-selected="true"],.chip[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
@@ -115,7 +118,7 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
   <header class="board">
     <div><h1>סימולציה אינטראקטיבית ללמידת כבישי ישראל</h1><div class="en">Israeli Road Learner</div></div>
     <div class="stats">
-      <div class="stat"><b id="sMaster">0</b><span>כבישים בשליטה</span></div>
+      <div class="stat"><b id="sMaster">0</b><span id="sMasterLbl">כבישים בשליטה</span></div>
       <div class="stat"><b id="sAcc">—</b><span>דיוק כולל</span></div>
       <div class="stat"><b id="sStreak">0</b><span>רצף נוכחי</span></div>
     </div>
@@ -130,22 +133,10 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
   </div>
 
   <div class="filters">
-    <div class="row"><span class="flabel">נושא</span><div class="seg" id="subjSeg"><button type="button" data-s="roads" aria-pressed="true">כבישים</button><button type="button" data-s="junctions" aria-pressed="false">צמתים ומחלפים</button></div></div>
+    <div class="row"><span class="flabel">נושא</span><div class="seg" id="subjSeg"><button type="button" data-s="roads" aria-pressed="true">כבישים</button><button type="button" data-s="junctions" aria-pressed="false">צמתים ומחלפים</button><button type="button" data-s="both" aria-pressed="false">כבישים + צמתים</button></div></div>
     <div class="row"><span class="flabel">ספרות</span><div class="row" id="digitChips"></div></div>
     <div class="row"><span class="flabel">אזור</span><button class="chip" type="button" id="regionBtn" aria-expanded="false" aria-controls="regionPanel"></button></div>
     <div class="row"><label class="row note" style="gap:6px"><input type="checkbox" id="showAll"> סמן בסגול את כל הכבישים בסינון</label></div>
-  </div>
-
-  <div class="card" id="regionPanel" hidden>
-    <div class="rowsb" style="margin-bottom:8px">
-      <div><div class="eyebrow">בחירת אזורים</div><p class="note" style="margin:2px 0 0">אפשר לבחור כמה אזורים. אפשר גם ללחוץ על אזור במפה. כביש שעובר בכמה אזורים שייך לכל אחד מהם.</p></div>
-      <div class="row"><button class="btn ghost" type="button" id="regAll">כל הארץ</button><button class="btn" type="button" id="regDone">סיום</button></div>
-    </div>
-    <div class="regs" id="regChips"></div>
-    <div id="councilBox" hidden>
-      <div class="eyebrow" style="margin-top:14px">מועצות אזוריות באזורים שבחרת <span class="note" style="font-weight:400">(לא חובה. בלי בחירה, כל האזור כולל הערים)</span></div>
-      <div class="regs" id="councilChips" style="margin-top:6px"></div>
-    </div>
   </div>
 
   <div class="main">
@@ -174,6 +165,19 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
     </div>
 
     <div class="panel">
+      <div class="card" id="regionPanel" hidden>
+    <div class="rowsb" style="margin-bottom:8px">
+      <div><div class="eyebrow">בחירת אזורים</div><p class="note" style="margin:2px 0 0">אפשר לבחור כמה אזורים. אפשר גם ללחוץ על אזור במפה. כביש שעובר בכמה אזורים שייך לכל אחד מהם.</p></div>
+      <div class="row"><button class="btn ghost" type="button" id="regAll">כל הארץ</button><button class="btn" type="button" id="regDone">סיום</button></div>
+    </div>
+    <div class="regs" id="regChips"></div>
+    <div id="councilBox" hidden>
+      <div class="eyebrow" style="margin-top:14px">מועצות אזוריות באזורים שבחרת <span class="note" style="font-weight:400">(לא חובה. בלי בחירה, כל האזור כולל הערים)</span></div>
+      <div class="regs" id="councilChips" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+
       <section id="view-study" class="panel">
         <div class="card detail" id="detail"></div>
         <div class="card">
@@ -271,7 +275,7 @@ const box=n=>(P.roads[n]&&P.roads[n].box)||0;
 const jbox=id=>(P.junc[id]&&P.junc[id].box)||0;
 function markJ(id,ok){const r=P.junc[id]||(P.junc[id]={box:0});r.box=ok?Math.min(5,r.box+1):Math.max(0,r.box-2);P.ans++;if(ok){P.ok++;P.streak++;}else P.streak=0;save();stats();}
 function mark(n,ok){const r=P.roads[n]||(P.roads[n]={box:0});r.box=ok?Math.min(5,r.box+1):Math.max(0,r.box-2);P.ans++;if(ok){P.ok++;P.streak++;}else P.streak=0;save();stats();}
-function stats(){if(subject==="junctions"){const f=filteredJ();$("sMaster").textContent=f.filter(j=>jbox(j.id)>=4).length+"/"+f.length;}else{const f=filtered();$("sMaster").textContent=f.filter(r=>box(r.n)>=4).length+"/"+f.length;}$("sAcc").textContent=P.ans?Math.round(100*P.ok/P.ans)+"%":"—";$("sStreak").textContent=P.streak;}
+function stats(){const fr=wantR()?filtered():[],fj=wantJ()?filteredJ():[];$("sMaster").textContent=(fr.filter(r=>box(r.n)>=4).length+fj.filter(j=>jbox(j.id)>=4).length)+"/"+(fr.length+fj.length);$("sAcc").textContent=P.ans?Math.round(100*P.ok/P.ans)+"%":"—";$("sStreak").textContent=P.streak;}
 
 /* ---------- filters ---------- */
 let digits=new Set([1,2]);
@@ -289,10 +293,11 @@ function filtered(){return ROADS.filter(r=>digits.has(r.dig)&&inArea(r));}
 // a junction is in the selection if one of its roads is of a selected digit level and it lies in a selected region
 function filteredJ(){return JUNC.filter(j=>j.rs.some(n=>digits.has(byN[n].dig))&&inArea(j));}
 let subject="roads";try{subject=localStorage.getItem("irl-subject")||"roads";}catch(e){}
+const wantR=()=>subject!=="junctions",wantJ=()=>subject!=="roads";
 function renderSubject(){document.querySelectorAll("#subjSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===subject));$("tab-rules").hidden=subject==="junctions";}
 function regionLabel(){if(!selR.size)return "כל הארץ";const n=[...selR].map(i=>RG.regions[i].name.split(":")[0]);
  let t=n.length>2?`${n.slice(0,2).join(", ")} ועוד ${n.length-2}`:n.join(", ");if(selC.size)t+=` · ${selC.size} מועצות`;return t;}
-function renderRegions(){const J=subject==="junctions";const items=J?JUNC:ROADS;const dOK=J?(j=>j.rs.some(n=>digits.has(byN[n].dig))):(r=>digits.has(r.dig));
+function renderRegions(){const items=[...(wantR()?ROADS:[]),...(wantJ()?JUNC:[])];const dOK=x=>x.rs?x.rs.some(n=>digits.has(byN[n].dig)):digits.has(x.dig);
  $("regionBtn").textContent=regionLabel()+" ▾";
  $("regChips").innerHTML=RG.regions.map((g,i)=>{const n=items.filter(r=>dOK(r)&&r.R.includes(i)).length;return `<button class="chip" type="button" data-r="${i}" aria-pressed="${selR.has(i)}">${g.name}<small>${n}</small></button>`;}).join("");
  const cs=RG.councils.filter(c=>selR.has(c.region));$("councilBox").hidden=!cs.length;
@@ -300,12 +305,17 @@ function renderRegions(){const J=subject==="junctions";const items=J?JUNC:ROADS;
 function regionsChanged(fit){[...selC].forEach(c=>{if(!selR.has(RG.councils[c].region))selC.delete(c);});saveRegions();renderRegions();onFilter();drawRegions();
  if(subject==="junctions"){if(mode==="study")studyShow();}else{const f=filtered();if(mode==="study"&&f.length&&!f.some(r=>r.n===cur)){cur=f[0].n;$("detail").innerHTML=detailHTML(byN[cur]);showRoad(cur,{fit:false});renderList();}}
  if(fit)fitRegions();}
-$("regionBtn").onclick=()=>{const open=$("regionPanel").hidden;$("regionPanel").hidden=!open;$("regionBtn").setAttribute("aria-expanded",open);drawRegions();if(open)renderRegions();};
-$("regDone").onclick=()=>{$("regionPanel").hidden=true;$("regionBtn").setAttribute("aria-expanded","false");drawRegions();};
+function setPicking(open){$("regionPanel").hidden=!open;document.querySelector(".main").classList.toggle("picking",open);$("regionBtn").setAttribute("aria-expanded",open);drawRegions();
+ if(open){renderRegions();if(!selR.size)map.setView([31.45,35.0],7.5);else fitRegions();
+  const m=document.querySelector(".main");if(m.getBoundingClientRect().top<0||m.getBoundingClientRect().top>innerHeight*.5)m.scrollIntoView({behavior:"smooth",block:"start"});}
+ else if(mode==="study"&&typeof studyShow==="function")studyShow();setTimeout(()=>map.invalidateSize(),60);}
+$("regionBtn").onclick=()=>setPicking($("regionPanel").hidden);
+$("regDone").onclick=()=>setPicking(false);
 $("regAll").onclick=()=>{selR.clear();selC.clear();regionsChanged(true);};
 $("regChips").addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;const i=+b.dataset.r;selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(true);});
 $("councilChips").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;const i=+b.dataset.c;selC.has(i)?selC.delete(i):selC.add(i);regionsChanged(true);});
-function onFilter(){if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();$("regionBtn").textContent=regionLabel()+" ▾";renderList();drawNet();stats();$("quizPoolNote").textContent=subject==="junctions"?`הסבב יכלול ${filteredJ().length} שאלות, שאלה אחת על כל צומת ומחלף בסינון, בסדר אקראי.`:`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;renderQmode();}
+function onFilter(){if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();$("regionBtn").textContent=regionLabel()+" ▾";renderList();drawNet();stats();$("quizPoolNote").textContent=subject==="junctions"?`הסבב יכלול ${filteredJ().length} שאלות, שאלה אחת על כל צומת ומחלף בסינון, בסדר אקראי.`:subject==="both"?`הסבב יכלול ${filtered().length+filteredJ().length} שאלות: ${filtered().length} כבישים ו־${filteredJ().length} צמתים ומחלפים, מעורבבים בסדר אקראי.`:`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;
+ const ml=$("sMasterLbl");if(ml)ml.textContent=subject==="junctions"?"צמתים בשליטה":subject==="both"?"כבישים וצמתים בשליטה":"כבישים בשליטה";renderQmode();}
 
 /* ---------- map ---------- */
 const map=L.map("map",{preferCanvas:true,zoomSnap:.5}).setView([31.6,35.0],8);
@@ -412,7 +422,10 @@ function detailHTML(r){const b=box(r.n);
 function selectRoad(n,{fit=true}={}){cur=n;if(typeof jLayer!=="undefined")jLayer.clearLayers();const r=byN[n];$("detail").innerHTML=detailHTML(r);showRoad(n,{fit});
  document.querySelectorAll("#list .roaditem").forEach(b=>b.setAttribute("aria-current",+b.dataset.n===n));
  if(fit){const m=midOf(r);setGoogle(m[0],m[1],r.span>40?11:r.span>10?13:15);}}
-function renderList(){if(subject==="junctions")return renderJList();const q=$("search").value.trim();let list=filtered();
+function renderList(){if(subject==="junctions")return renderJList();if(subject==="both"){renderRoadList();const rh=$("list").innerHTML,rc=$("count").textContent;renderJList();
+  $("count").textContent=rc+" · "+$("count").textContent;$("list").innerHTML=rh+`<div class="eyebrow" style="margin:10px 0 4px">צמתים ומחלפים</div>`+$("list").innerHTML;return;}
+ renderRoadList();}
+function renderRoadList(){const q=$("search").value.trim();let list=filtered();
  if(q)list=list.filter(r=>String(r.n).startsWith(q)||r.title.includes(q)||r.f.includes(q)||r.t.includes(q)||r.v.some(v=>v.includes(q)));
  $("count").textContent=`${list.length} כבישים`;
  $("list").innerHTML=list.slice(0,400).map(r=>`<button class="roaditem" type="button" data-n="${r.n}" aria-current="${r.n===cur}">${sh(r)}<span class="nm">${r.title}</span><span class="dots">${[1,2,3,4,5].map(i=>`<i class="${box(r.n)>=i?"on":""}"></i>`).join("")}</span></button>`).join("")+(list.length>400?`<p class="note">מוצגים 400 הראשונים. אפשר לצמצם בחיפוש.</p>`:"");}
@@ -457,8 +470,8 @@ let qmode="choice";
 try{qmode=localStorage.getItem("irl-qmode")||"choice";}catch(e){}
 const QMODE_NOTE={choice:"כביש מסומן בכחול ובוחרים את המספר מתוך 4 אפשרויות, או לוחצים על הכביש הנכון במפה.",type:"כביש מסומן בכחול על המפה, ובלי שום אפשרויות מקלידים את מספר הכביש."};
 const QMODE_NOTE_J={choice:"צומת או מחלף מסומן באדום ובוחרים את השם מתוך 4 אפשרויות, לוחצים על הצומת הנכון במפה, או מזהים באיזה צומת נפגשים שני כבישים.",type:"מופיע שם של צומת או מחלף, ומקלידים את מספרי הכבישים שנפגשים בו."};
-function renderQmode(){document.querySelectorAll("#qmodeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===qmode));$("qmodeNote").textContent=(subject==="junctions"?QMODE_NOTE_J:QMODE_NOTE)[qmode];
- const tb=document.querySelector('#qmodeSeg [data-m="type"]');if(tb)tb.textContent=subject==="junctions"?"הקלדת מספרי הכבישים":"הקלדת מספר הכביש";}
+function renderQmode(){document.querySelectorAll("#qmodeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===qmode));$("qmodeNote").textContent=subject==="both"?QMODE_NOTE[qmode]+" "+QMODE_NOTE_J[qmode]:(subject==="junctions"?QMODE_NOTE_J:QMODE_NOTE)[qmode];
+ const tb=document.querySelector('#qmodeSeg [data-m="type"]');if(tb)tb.textContent=subject==="roads"?"הקלדת מספר הכביש":"הקלדת מספרי כבישים";}
 $("qmodeSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;qmode=b.dataset.m;try{localStorage.setItem("irl-qmode",qmode);}catch(e){}renderQmode();});
 function makeQ(r,pool){
  if(qmode==="type")return{t:"type",r,text:"מה מספר הכביש המסומן בכחול?"};
@@ -489,7 +502,9 @@ function makeQJ(j){
  if(t==="jclick"){return{t,j,text:`לחץ על ${j.name} במפה`,set:[j,...nearJ(j,7,pool)]};}
  const o=shuffle([j,...nearJ(j,3,pool,x=>!(x.rs.includes(pair[0])&&x.rs.includes(pair[1])))]);
  return{t:"jpair",j,text:`באיזה צומת או מחלף נפגשים כביש ${pair[0]} וכביש ${pair[1]}?`,opts:o.map(x=>({label:x.name,ok:x.id===j.id}))};}
-function startQuiz(){if(subject==="junctions"){const pl=filteredJ();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 צמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}runRound(shuffle(pl.slice()));return;}
+function startQuiz(){if(subject==="both"){const pr=filtered(),pj=filteredJ();if(pr.length<4&&pj.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש מעט מדי כבישים וצמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
+  runRound(shuffle([...(pr.length>=4?pr:[]),...(pj.length>=4?pj:[])]));return;}
+ if(subject==="junctions"){const pl=filteredJ();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 צמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}runRound(shuffle(pl.slice()));return;}
  const pl=filtered();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 כבישים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
  runRound(shuffle(pl.slice()));}
 function runRound(items){const qs=items.map(x=>x.rs?makeQJ(x):makeQ(x));
@@ -548,17 +563,15 @@ function finish(ok,extra){const q=Q.qs[Q.i];
  <div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
  $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});}
 function next(){Q.i++;if(Q.i<Q.qs.length)showQ();else summary();}
-function summary(){const ans=Q.res.length;const c=Q.res.filter(Boolean).length;jLayer.clearLayers();
- if(Q.qs[0]&&Q.qs[0].j){const missJ=[...new Set(Q.qs.filter((q,i)=>i<Q.res.length&&!Q.res[i]).map(q=>q.j.id))];netMode="study";drawNet();
-  $("quizBox").innerHTML=`<div class="eyebrow">סיכום הסבב</div>${bar()}<div class="rowsb" style="margin:14px 0"><div><div class="big">${c}/${ans}</div><div class="note">תשובות נכונות${ans<Q.qs.length?` (נענו ${ans} מתוך ${Q.qs.length})`:""}</div></div><div class="row">${missJ.length?`<button class="btn" id="retryMiss" type="button">סבב על הטעויות (${missJ.length})</button>`:""}<button class="btn${missJ.length?" ghost":""}" id="again" type="button">סבב מלא חדש</button><button class="btn ghost" id="toSetup" type="button">חזרה</button></div></div>
-  ${missJ.length?`<p style="margin:0 0 8px">כדאי לחזור על:</p><div class="list">${missJ.map(id=>`<button class="roaditem" type="button" data-studyj="${id}"><span class="nm">${byJ[id].name}</span>${jsh(byJ[id])}</button>`).join("")}</div>`:`<p>סבב נקי, בלי טעויות.</p>`}`;
-  $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(missJ.map(id=>byJ[id])));
-  document.querySelectorAll("[data-studyj]").forEach(b=>b.onclick=()=>{setMode("study");selectJunction(+b.dataset.studyj);});return;}
- const miss=[...new Set(Q.qs.filter((q,i)=>i<Q.res.length&&!Q.res[i]).map(q=>q.r.n))];netMode="study";drawNet();
+function summary(){const ans=Q.res.length;const c=Q.res.filter(Boolean).length;jLayer.clearLayers();netMode="study";drawNet();
+ // missed items (roads and/or junctions), each once, in the order they were asked
+ const seen=new Set(),miss=[];Q.qs.forEach((q,i)=>{if(i<Q.res.length&&!Q.res[i]){const it=q.j||q.r,key=(q.j?"j":"r")+(q.j?q.j.id:q.r.n);if(!seen.has(key)){seen.add(key);miss.push(it);}}});
+ const itemBtn=it=>it.rs?`<button class="roaditem" type="button" data-studyj="${it.id}"><span class="nm">${it.name}</span>${jsh(it)}</button>`:`<button class="roaditem" type="button" data-study="${it.n}">${sh(it)}<span class="nm">${it.title}</span></button>`;
  $("quizBox").innerHTML=`<div class="eyebrow">סיכום הסבב</div>${bar()}<div class="rowsb" style="margin:14px 0"><div><div class="big">${c}/${ans}</div><div class="note">תשובות נכונות${ans<Q.qs.length?` (נענו ${ans} מתוך ${Q.qs.length})`:""}</div></div><div class="row">${miss.length?`<button class="btn" id="retryMiss" type="button">סבב על הטעויות (${miss.length})</button>`:""}<button class="btn${miss.length?" ghost":""}" id="again" type="button">סבב מלא חדש</button><button class="btn ghost" id="toSetup" type="button">חזרה</button></div></div>
- ${miss.length?`<p style="margin:0 0 8px">כדאי לחזור על:</p><div class="list">${miss.map(n=>`<button class="roaditem" type="button" data-study="${n}">${sh(byN[n])}<span class="nm">${byN[n].title}</span></button>`).join("")}</div>`:`<p>סבב נקי, בלי טעויות.</p>`}`;
- $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(miss.map(n=>byN[n])));
- document.querySelectorAll("[data-study]").forEach(b=>b.onclick=()=>{setMode("study");selectRoad(+b.dataset.study);});}
+ ${miss.length?`<p style="margin:0 0 8px">כדאי לחזור על:</p><div class="list">${miss.map(itemBtn).join("")}</div>`:`<p>סבב נקי, בלי טעויות.</p>`}`;
+ $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(miss.slice()));
+ document.querySelectorAll("[data-study]").forEach(b=>b.onclick=()=>{setMode("study");selectRoad(+b.dataset.study);});
+ document.querySelectorAll("[data-studyj]").forEach(b=>b.onclick=()=>{setMode("study");selectJunction(+b.dataset.studyj);});}
 function endQuiz(){Q=null;hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
 $("quizBox").addEventListener("click",e=>{const b=e.target.closest(".opt");if(b&&!b.disabled)answer(+b.dataset.i);});
 document.addEventListener("keydown",e=>{if(mode!=="quiz"||!Q||e.target.tagName==="INPUT")return;
