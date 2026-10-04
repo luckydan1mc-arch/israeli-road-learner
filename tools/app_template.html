@@ -305,7 +305,7 @@ function hebrewLabels(m){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symb
  if(tf.includes("name")&&!tf.includes("ref")&&!tf.includes("name:he"))m.setLayoutProperty(l.id,"text-field",HE_NAME);});}
 function makeVec(){try{if(!L.maplibreGL||!window.maplibregl)return null;
   const v=L.maplibreGL({style:"https://tiles.openfreemap.org/styles/liberty",attribution:'<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © OpenStreetMap'});
-  v.on&&v.on("add",()=>{const m=v.getMaplibreMap&&v.getMaplibreMap();if(m)m.on("styledata",()=>{if(m.isStyleLoaded()){hebrewLabels(m);applyLabels();}});});
+  v.on&&v.on("add",()=>{const m=v.getMaplibreMap&&v.getMaplibreMap();if(m){const fix=()=>{try{hebrewLabels(m);applyLabels();}catch(e){}};m.on("styledata",fix);m.on("load",fix);}});
   return v;}catch(e){return null;}}
 vec=makeVec();
 const BASES={
@@ -314,7 +314,7 @@ const BASES={
 const SAT_LABELS=L.tileLayer(ESRI+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,pane:"overlayPane"});
 let baseKey="map";
 function applyLabels(){
- if(vec&&vec.getMaplibreMap){const m=vec.getMaplibreMap();if(m&&m.getStyle&&m.isStyleLoaded()){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const sl=l["source-layer"]||"";
+ if(vec&&vec.getMaplibreMap){const m=vec.getMaplibreMap();if(m&&m.getStyle&&m.getStyle()){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const sl=l["source-layer"]||"";
    const roadish=sl.startsWith("transportation")||sl==="poi"||sl==="aerodrome_label";  // road numbers, road names, POIs
    m.setLayoutProperty(l.id,"visibility",(labelsOn||!roadish)?"visible":"none");});}}
  if(baseKey==="sat")SAT_LABELS.addTo(map);else map.removeLayer(SAT_LABELS);}
