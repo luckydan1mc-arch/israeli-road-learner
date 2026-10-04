@@ -1,0 +1,6 @@
+*.pbf
+tools/roads.json
+tools/roads2.json
+tools/roads_min.json
+tools/regions.json
+__pycache__/

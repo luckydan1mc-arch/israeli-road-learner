@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Israeli Road Learner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Barlow+Condensed:wght@600;700&family=Secular+One&display=swap">
+<style>
+/* Layout: signboard header; map + Google view on one side, working panel on the other (stacks on phones) */
+:root{
+  --bg:#eef0ec; --surface:#ffffff; --surface-2:#f6f7f4; --fg:#1b221e; --muted:#5a655e; --border:#d5dbd4;
+  --sign:#0a6a4e; --sign-fg:#ffffff; --lane:#e9ad00;
+  --good:#1d7a3d; --good-bg:#e1f2e5; --bad:#b3261e; --bad-bg:#fbe5e3;
+  --f-display:"Secular One","Assistant",system-ui,sans-serif;
+  --f-body:"Assistant",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141816; --surface:#1d2320; --surface-2:#232a26; --fg:#e6ebe7; --muted:#9ba69f; --border:#323b36;
+  --sign:#1c8c68; --lane:#f3c12b; --good:#5cc47c; --good-bg:#183324; --bad:#f08a80; --bad-bg:#3a1c1a; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.55;padding:16px 16px 40px}
+.wrap{max-width:1320px;margin-inline:auto;display:flex;flex-direction:column;gap:14px}
+header.board{background:var(--sign);color:var(--sign-fg);border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.85)}
+.board h1{font-family:var(--f-display);font-weight:400;font-size:1.7rem;margin:0;line-height:1.1}
+.board .en{font-family:var(--f-num);letter-spacing:.06em;font-size:.95rem;opacity:.85;text-transform:uppercase}
+.stats{display:flex;gap:18px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:var(--f-num);font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:.8rem;opacity:.85}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tab,.chip,.seg button{font:inherit;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--fg);padding:7px 15px;border-radius:999px;cursor:pointer}
+.chip{padding:5px 12px;font-size:.9rem}
+.regs{display:flex;flex-wrap:wrap;gap:6px}
+#regionBtn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip small{font-weight:400;color:var(--muted);margin-inline-start:4px}
+.tab[aria-selected="true"],.chip[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip[aria-pressed="true"] small{color:var(--bg);opacity:.75}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{padding:4px 11px;font-size:.85rem}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--lane);outline-offset:2px}
+.filters{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.flabel{font-size:.8rem;color:var(--muted);font-weight:700}
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.mapcol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.mapbox{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px}
+#map{height:min(64vh,600px);border-radius:6px;background:var(--surface-2)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.cap{font-size:.88rem;color:var(--muted)}
+.cap b{color:var(--fg)}
+#gframe{width:100%;height:360px;border:0;border-radius:6px;display:block;background:var(--surface-2)}
+.gcover{height:360px;border-radius:6px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;color:var(--muted)}
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.shield{display:inline-flex;align-items:center;justify-content:center;min-width:2.3em;padding:2px 8px;border-radius:6px;background:var(--fg);color:var(--bg);font-family:var(--f-num);font-weight:700;font-size:1.2rem;line-height:1.25;border:2px solid var(--lane);font-variant-numeric:tabular-nums}
+.shield.big{font-size:2.4rem;padding:2px 14px;border-width:3px}
+.shield.d3{border-color:#3d8bd4}.shield.d4{border-color:var(--muted)}
+input[type=search],select{font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);min-width:0}
+input[type=search]{flex:1 1 160px}
+.list{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow:auto;padding-inline-end:4px}
+.roaditem{font:inherit;text-align:start;display:flex;gap:10px;align-items:center;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);border-radius:8px;padding:7px 9px;cursor:pointer;min-width:0}
+.roaditem[aria-current="true"]{box-shadow:0 0 0 2px var(--sign) inset;border-color:var(--sign)}
+.roaditem .nm{font-size:.88rem;line-height:1.3;min-width:0;overflow-wrap:anywhere;flex:1}
+.dots{display:flex;gap:2px}.dots i{width:6px;height:6px;border-radius:50%;background:var(--border)}.dots i.on{background:var(--good)}
+.detail h2{font-family:var(--f-display);font-weight:400;font-size:1.45rem;margin:0;text-wrap:balance}
+.dhead{display:flex;gap:14px;align-items:center;margin-bottom:10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0}
+.kv dt{color:var(--muted);font-size:.85rem;padding-top:2px}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.pill{display:inline-block;font-size:.78rem;font-weight:700;padding:1px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted)}
+ul.facts{margin:6px 0 0;padding-inline-start:20px}
+.glinks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.glinks a{font-weight:700;font-size:.9rem;text-decoration:none;color:var(--sign);border:1px solid var(--sign);padding:6px 12px;border-radius:8px}
+.eyebrow{font-size:.78rem;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.q{font-family:var(--f-display);font-weight:400;font-size:1.35rem;margin:6px 0 14px;text-wrap:balance}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:480px){.opts{grid-template-columns:minmax(0,1fr)}}
+.opt{font:inherit;font-size:1.02rem;text-align:start;display:flex;gap:10px;align-items:center;padding:11px;border-radius:10px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg);cursor:pointer;min-width:0}
+.opt:hover:not(:disabled){border-color:var(--fg)}
+.opt .k{font-family:var(--f-num);font-size:.85rem;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 6px}
+.opt.right{border-color:var(--good);background:var(--good-bg)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.clickhint{padding:12px;border-radius:10px;border:2px dashed var(--lane);background:var(--surface-2)}
+.feedback{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border)}
+.feedback.ok strong{color:var(--good)} .feedback.no strong{color:var(--bad)}
+.btn{font:inherit;font-weight:700;padding:9px 18px;border-radius:8px;border:none;background:var(--sign);color:var(--sign-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.pbar{display:flex;height:8px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:6px}.pbar i{display:block;height:100%}.pbar i.ok{background:var(--good)}.pbar i.no{background:var(--bad)}
+.progress{display:flex;gap:4px;margin-top:4px}
+.progress i{flex:1;height:6px;border-radius:3px;background:var(--border)}
+.progress i.ok{background:var(--good)} .progress i.no{background:var(--bad)} .progress i.cur{background:var(--lane)}
+.rowsb{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.big{font-family:var(--f-num);font-size:3rem;line-height:1}
+.rules h3{font-family:var(--f-display);font-weight:400;font-size:1.15rem;margin:16px 0 6px}
+.rules p{margin:0 0 8px;max-width:65ch}
+.note{font-size:.85rem;color:var(--muted)}
+.lbl{background:none;border:none}
+.rlbl{background:none;border:none}
+.rlbl span{position:absolute;left:0;top:0;display:inline-block;transform:translate(-50%,-50%);background:rgba(255,255,255,.92);color:#1b221e;font:700 12px/1.3 "Assistant",system-ui,sans-serif;padding:2px 7px;border-radius:5px;border:1px solid rgba(0,0,0,.25);white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.rlbl span.on{background:#0a6a4e;color:#fff;border-color:#0a6a4e}
+.lbl span{position:absolute;left:0;top:0;display:inline-block;transform:translate(-50%,-50%);background:#1a73e8;color:#fff;font:700 14px/1.25 "Barlow Condensed",Arial Narrow,sans-serif;padding:1px 7px;border-radius:4px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);white-space:nowrap}
+.leaflet-container{font-family:var(--f-body)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="board">
+    <div><h1>סימולציה אינטראקטיבית ללמידת כבישי ישראל</h1><div class="en">Israeli Road Learner</div></div>
+    <div class="stats">
+      <div class="stat"><b id="sMaster">0</b><span>כבישים בשליטה</span></div>
+      <div class="stat"><b id="sAcc">—</b><span>דיוק כולל</span></div>
+      <div class="stat"><b id="sStreak">0</b><span>רצף נוכחי</span></div>
+    </div>
+  </header>
+
+  <div class="rowsb">
+    <nav class="row" role="tablist">
+      <button class="tab" role="tab" id="tab-study" aria-selected="true">לימוד</button>
+      <button class="tab" role="tab" id="tab-quiz" aria-selected="false">חידון</button>
+      <button class="tab" role="tab" id="tab-rules" aria-selected="false">חוקי המספור</button>
+    </nav>
+  </div>
+
+  <div class="filters">
+    <div class="row"><span class="flabel">ספרות</span><div class="row" id="digitChips"></div></div>
+    <div class="row"><span class="flabel">אזור</span><button class="chip" type="button" id="regionBtn" aria-expanded="false" aria-controls="regionPanel"></button></div>
+    <div class="row"><label class="row note" style="gap:6px"><input type="checkbox" id="showAll"> סמן בסגול את כל הכבישים בסינון</label></div>
+  </div>
+
+  <div class="card" id="regionPanel" hidden>
+    <div class="rowsb" style="margin-bottom:8px">
+      <div><div class="eyebrow">בחירת אזורים</div><p class="note" style="margin:2px 0 0">אפשר לבחור כמה אזורים. אפשר גם ללחוץ על אזור במפה. כביש שעובר בכמה אזורים שייך לכל אחד מהם.</p></div>
+      <div class="row"><button class="btn ghost" type="button" id="regAll">כל הארץ</button><button class="btn" type="button" id="regDone">סיום</button></div>
+    </div>
+    <div class="regs" id="regChips"></div>
+    <div id="councilBox" hidden>
+      <div class="eyebrow" style="margin-top:14px">מועצות אזוריות באזורים שבחרת <span class="note" style="font-weight:400">(לא חובה. בלי בחירה, כל האזור כולל הערים)</span></div>
+      <div class="regs" id="councilChips" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="mapcol">
+      <div class="mapbox">
+        <div class="bar">
+          <span class="cap" id="mapCap"></span>
+          <div class="seg" id="baseSeg">
+            <button type="button" data-b="map" aria-pressed="true">מפה</button>
+            <button type="button" data-b="sat" aria-pressed="false">לוויין</button>
+          </div>
+        </div>
+        <div id="map"></div>
+      </div>
+      <div class="mapbox">
+        <div class="bar">
+          <span class="cap" id="gCap">גוגל מפות. לחיצה על כביש במפה למעלה מזיזה את גוגל לנקודה הזו</span>
+          <div class="seg" id="gSeg">
+            <button type="button" data-g="k" aria-pressed="true">לוויין</button>
+            <button type="button" data-g="m" aria-pressed="false">מפה</button>
+          </div>
+        </div>
+        <iframe id="gframe" title="גוגל מפות" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        <div class="gcover" id="gcover" hidden>גוגל מוסתר עד שעונים, כי הוא מציג את מספר הכביש.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <section id="view-study" class="panel">
+        <div class="card detail" id="detail"></div>
+        <div class="card">
+          <div class="row" style="margin-bottom:10px">
+            <input type="search" id="search" placeholder="חיפוש: מספר כביש או מקום (למשל 38, בית שמש)">
+          </div>
+          <div class="note" id="count" style="margin-bottom:6px"></div>
+          <div class="list" id="list"></div>
+        </div>
+      </section>
+
+      <section id="view-quiz" class="panel" hidden>
+        <div class="card" id="quizSetup">
+          <div class="eyebrow">סבב מלא: כל כביש בסינון נשאל פעם אחת</div>
+          <p class="q" style="margin-bottom:8px">החידון משתמש בסינון שלמעלה</p>
+          <p class="note" id="quizPoolNote"></p>
+          <div class="row" style="margin-top:6px"><span class="flabel">סוג חידון</span>
+            <div class="seg" id="qmodeSeg">
+              <button type="button" data-m="choice" aria-pressed="true">אפשרויות לבחירה</button>
+              <button type="button" data-m="type" aria-pressed="false">הקלדת מספר הכביש</button>
+            </div></div>
+          <p class="note" id="qmodeNote" style="margin-top:8px"></p>
+          <div class="row" style="margin-top:8px"><button class="btn" id="startQuiz" type="button">התחל סבב</button></div>
+        </div>
+        <div class="card" id="quizBox" hidden></div>
+      </section>
+
+      <section id="view-rules" class="panel" hidden>
+        <div class="card rules">
+          <div class="eyebrow">הבסיס שחוסך שינון</div>
+          <h3>זוגי או אי־זוגי</h3>
+          <p>כביש שרץ מצפון לדרום מקבל מספר זוגי. כביש שרץ ממערב למזרח מקבל מספר אי־זוגי. ברוב הכבישים זה מתקיים, אבל לא בכולם. בכרטיס של כל כביש כתוב אם הוא תואם את הכלל.</p>
+          <h3>כמה ספרות</h3>
+          <p>1–2 ספרות: כביש ארצי ראשי. 3 ספרות: כביש אזורי. 4 ספרות: כביש מקומי, בדרך כלל כביש גישה ליישוב.</p>
+          <h3>הספרה הראשונה מסמנת אזור</h3>
+          <p>בכבישים בני 3 ו־4 ספרות הספרה הראשונה רומזת על האזור: 7 ו־8 בצפון, 3 בשפלה ובירושלים, 4 במרכז, 2 ו־1 בדרום. למשל 3866 ליד בית שמש ו־7188 בעמק הירדן.</p>
+          <h3>הסדר על המפה</h3>
+          <p>כבישי צפון–דרום הדו־ספרתיים עולים ממערב למזרח: 4 ליד החוף, 40 ו־60 באמצע, 90 בבקעה ובערבה. כבישי מערב–מזרח עולים מדרום לצפון: 25 ו־31 בנגב, 65 ו־71 בעמקים, 85, 89 ו־99 בגליל ובגולן.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+  <p class="note">מקור התוואי: OpenStreetMap (גרסה מ־2.10.2026), כל מקטעי הכביש שמסומנים במספר. מפת רקע: OpenFreeMap, לוויין: Esri. התצוגה התחתונה היא גוגל מפות. ההתקדמות נשמרת בדפדפן הזה.</p>
+</div>
+
+<script id="roads" type="application/json">__ROADS__</script>
+<script id="regions" type="application/json">__REGIONS__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<script>
+const RAW=JSON.parse(document.getElementById("roads").textContent);
+const RG=JSON.parse(document.getElementById("regions").textContent);
+const DIRS={NS:"צפון–דרום",EW:"מערב–מזרח"};
+const HW={motorway:"כביש מהיר",trunk:"כביש ראשי",primary:"כביש בין־עירוני ראשי",secondary:"כביש אזורי",tertiary:"כביש מקומי",unclassified:"כביש מקומי",residential:"כביש מקומי"};
+const CUR={
+1:["כביש תל אביב–ירושלים",["העורק הראשי בין מישור החוף לירושלים, דרך שער הגיא.","ממזרח לירושלים הוא יורד אל מתחת לפני הים ומגיע לאזור ים המלח."]],
+2:["כביש החוף",["הכביש המהיר לאורך מישור החוף בין גוש דן לחיפה."]],
+3:["כביש אשקלון–מודיעין",["כביש אלכסוני שמחבר את מישור החוף הדרומי לאזור לטרון ומודיעין."]],
+4:["כביש החוף הישן",["רץ לאורך כמעט כל מישור החוף, מגבול רצועת עזה ועד ראש הנקרה.","באזור גוש דן הקטע שלו ידוע בשם דרך גהה."]],
+5:["חוצה שומרון",["יוצא מגוש דן מזרחה אל אריאל."]],
+6:["כביש חוצה ישראל (דרך יצחק רבין)",["כביש האגרה הראשון בישראל, עם גבייה אלקטרונית ובלי עמדות תשלום."]],
+20:["נתיבי איילון",["הכביש המהיר העירוני של תל אביב, לאורך נחל איילון."]],
+25:["כביש באר שבע–דימונה–הערבה",["חוצה את הנגב ממערב למזרח."]],
+31:["כביש להבים–ערד–ים המלח",["מערד הוא יורד מזרחה אל ים המלח."]],
+35:["כביש אשקלון–קריית גת–חברון",["חוצה את הלכיש מהחוף אל הרי חברון."]],
+38:["כביש בית שמש",["הכניסה הראשית לבית שמש מכביש 1, וממשיך דרומה עד בית גוברין."]],
+40:["כביש כפר סבא–באר שבע–מצפה רמון",["חוצה את מכתש רמון בירידה ממצפה רמון."]],
+60:["דרך האבות",["עובר לאורך רכס ההר ומחבר את באר שבע, ירושלים ונצרת."]],
+65:["כביש ואדי ערה",["חוצה את ואדי ערה מהשרון אל עמק יזרעאל."]],
+71:["כביש עפולה–בית שאן",["חוצה את עמק יזרעאל ועמק בית שאן עד הירדן."]],
+77:["כביש חיפה–טבריה",["הדרך הראשית ממפרץ חיפה אל הכנרת."]],
+85:["כביש עכו–כרמיאל",["חוצה את הגליל ממערב למזרח."]],
+89:["כביש נהריה–צפת",["עולה מהחוף אל הרי הגליל העליון."]],
+90:["כביש הבקעה והערבה",["הכביש הארוך בישראל, מהגבול הצפוני ועד אילת.","לאורך ים המלח הוא עובר בנקודה הנמוכה ביותר בעולם."]],
+98:["כביש הגולן",["רץ לאורך רמת הגולן עד אזור החרמון."]],
+99:["כביש קריית שמונה–בניאס",["עולה מעמק החולה דרך הבניאס לצפון הגולן."]],
+443:["כביש מודיעין–ירושלים",["הדרך החלופית לכביש 1 בין מישור החוף לירושלים."]]};
+const $=id=>document.getElementById(id);
+const ROADS=Object.entries(RAW).map(([k,r])=>{const n=+k;let la0=90,la1=-90,lo0=180,lo1=-180;r.g.forEach(l=>l.forEach(p=>{if(p[0]<la0)la0=p[0];if(p[0]>la1)la1=p[0];if(p[1]<lo0)lo0=p[1];if(p[1]>lo1)lo1=p[1];}));
+ const c=CUR[n];const access=r.f&&r.f===r.t;
+ const title=c?c[0]:(access?`כביש הגישה ל${r.f}`:(r.f&&r.t?`${r.f} – ${r.t}`:"כביש "+n));
+ const rg=RG.roads[k]||{R:[],C:[]};return{n,R:rg.R,C:rg.C,dig:String(n).length,g:r.g,f:r.f,t:r.t,v:r.v,d:r.d,ok:!!r.ok,h:r.h,reg:r.r,span:r.s,title,facts:c?c[1]:[],access,bb:[la0,lo0,la1,lo1],c:[(la0+la1)/2,(lo0+lo1)/2]};}).sort((a,b)=>a.n-b.n);
+const byN=Object.fromEntries(ROADS.map(r=>[r.n,r]));
+
+/* ---------- progress ---------- */
+let P={roads:{},ans:0,ok:0,streak:0};
+try{const s=localStorage.getItem("irl-progress-v2");if(s)P=Object.assign(P,JSON.parse(s));}catch(e){}
+function save(){try{localStorage.setItem("irl-progress-v2",JSON.stringify(P));}catch(e){}}
+const box=n=>(P.roads[n]&&P.roads[n].box)||0;
+function mark(n,ok){const r=P.roads[n]||(P.roads[n]={box:0});r.box=ok?Math.min(5,r.box+1):Math.max(0,r.box-2);P.ans++;if(ok){P.ok++;P.streak++;}else P.streak=0;save();stats();}
+function stats(){const f=filtered();$("sMaster").textContent=f.filter(r=>box(r.n)>=4).length+"/"+f.length;$("sAcc").textContent=P.ans?Math.round(100*P.ok/P.ans)+"%":"—";$("sStreak").textContent=P.streak;}
+
+/* ---------- filters ---------- */
+let digits=new Set([1,2]);
+const DLABEL={1:"חד־ספרתי",2:"דו־ספרתי",3:"תלת־ספרתי",4:"ארבע ספרות"};
+function renderChips(){$("digitChips").innerHTML=[1,2,3,4].map(d=>`<button class="chip" type="button" data-d="${d}" aria-pressed="${digits.has(d)}">${DLABEL[d]}<small>${ROADS.filter(r=>r.dig===d).length}</small></button>`).join("");}
+$("digitChips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;const d=+b.dataset.d;if(digits.has(d)){if(digits.size>1)digits.delete(d);}else digits.add(d);renderChips();onFilter();});
+$("showAll").addEventListener("change",drawNet);
+/* ---------- regions & regional councils ---------- */
+let selR=new Set(),selC=new Set();
+try{const v=JSON.parse(localStorage.getItem("irl-regions")||"{}");(v.r||[]).forEach(x=>selR.add(x));(v.c||[]).forEach(x=>selC.add(x));}catch(e){}
+function saveRegions(){try{localStorage.setItem("irl-regions",JSON.stringify({r:[...selR],c:[...selC]}));}catch(e){}}
+// a road matches if, in one of the chosen regions it runs through, either no council of that region is chosen or it passes a chosen one
+const inArea=r=>{if(!selR.size)return true;return r.R.some(g=>{if(!selR.has(g))return false;const cs=[...selC].filter(c=>RG.councils[c].region===g);return !cs.length||r.C.some(c=>cs.includes(c));});};
+function filtered(){return ROADS.filter(r=>digits.has(r.dig)&&inArea(r));}
+function regionLabel(){if(!selR.size)return "כל הארץ";const n=[...selR].map(i=>RG.regions[i].name.split(":")[0]);
+ let t=n.length>2?`${n.slice(0,2).join(", ")} ועוד ${n.length-2}`:n.join(", ");if(selC.size)t+=` · ${selC.size} מועצות`;return t;}
+function renderRegions(){const dOK=r=>digits.has(r.dig);
+ $("regionBtn").textContent=regionLabel()+" ▾";
+ $("regChips").innerHTML=RG.regions.map((g,i)=>{const n=ROADS.filter(r=>dOK(r)&&r.R.includes(i)).length;return `<button class="chip" type="button" data-r="${i}" aria-pressed="${selR.has(i)}">${g.name}<small>${n}</small></button>`;}).join("");
+ const cs=RG.councils.filter(c=>selR.has(c.region));$("councilBox").hidden=!cs.length;
+ $("councilChips").innerHTML=cs.map(c=>{const n=ROADS.filter(r=>dOK(r)&&r.C.includes(c.id)).length;return `<button class="chip" type="button" data-c="${c.id}" aria-pressed="${selC.has(c.id)}">${c.name}<small>${n}</small></button>`;}).join("");}
+function regionsChanged(fit){[...selC].forEach(c=>{if(!selR.has(RG.councils[c].region))selC.delete(c);});saveRegions();renderRegions();onFilter();drawRegions();
+ const f=filtered();if(mode==="study"&&f.length&&!f.some(r=>r.n===cur)){cur=f[0].n;$("detail").innerHTML=detailHTML(byN[cur]);showRoad(cur,{fit:false});renderList();}
+ if(fit)fitRegions();}
+$("regionBtn").onclick=()=>{const open=$("regionPanel").hidden;$("regionPanel").hidden=!open;$("regionBtn").setAttribute("aria-expanded",open);drawRegions();if(open)renderRegions();};
+$("regDone").onclick=()=>{$("regionPanel").hidden=true;$("regionBtn").setAttribute("aria-expanded","false");drawRegions();};
+$("regAll").onclick=()=>{selR.clear();selC.clear();regionsChanged(true);};
+$("regChips").addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;const i=+b.dataset.r;selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(true);});
+$("councilChips").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;const i=+b.dataset.c;selC.has(i)?selC.delete(i):selC.add(i);regionsChanged(true);});
+function onFilter(){if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();$("regionBtn").textContent=regionLabel()+" ▾";renderList();drawNet();stats();$("quizPoolNote").textContent=`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;}
+
+/* ---------- map ---------- */
+const map=L.map("map",{preferCanvas:true,zoomSnap:.5}).setView([31.6,35.0],8);
+const canvas=L.canvas({tolerance:8});
+const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
+/* Google-like light vector map (OpenFreeMap "Liberty"); falls back to Esri streets if vector maps are unavailable */
+let vec=null,labelsOn=true;
+try{if(window.maplibregl&&maplibregl.getRTLTextPluginStatus()==="unavailable")maplibregl.setRTLTextPlugin("https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js",false).then(()=>{const m=vec&&vec.getMaplibreMap&&vec.getMaplibreMap();if(m)m.triggerRepaint();}).catch(()=>{});}catch(e){}
+const HE_NAME=["coalesce",["get","name:he"],["get","name:nonlatin"],["get","name"]];
+function hebrewLabels(m){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const tf=JSON.stringify(m.getLayoutProperty(l.id,"text-field")||"");
+ if(tf.includes("name")&&!tf.includes("ref")&&!tf.includes("name:he"))m.setLayoutProperty(l.id,"text-field",HE_NAME);});}
+function makeVec(){try{if(!L.maplibreGL||!window.maplibregl)return null;
+  const v=L.maplibreGL({style:"https://tiles.openfreemap.org/styles/liberty",attribution:'<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © OpenStreetMap'});
+  v.on&&v.on("add",()=>{const m=v.getMaplibreMap&&v.getMaplibreMap();if(m)m.on("styledata",()=>{if(m.isStyleLoaded()){hebrewLabels(m);applyLabels();}});});
+  return v;}catch(e){return null;}}
+vec=makeVec();
+const BASES={
+ map:vec||L.tileLayer(ESRI+"World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
+ sat:L.layerGroup([L.tileLayer(ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Imagery © Esri, Maxar"})])};
+const SAT_LABELS=L.tileLayer(ESRI+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,pane:"overlayPane"});
+let baseKey="map";
+function applyLabels(){
+ if(vec&&vec.getMaplibreMap){const m=vec.getMaplibreMap();if(m&&m.getStyle&&m.isStyleLoaded()){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const sl=l["source-layer"]||"";
+   const roadish=sl.startsWith("transportation")||sl==="poi"||sl==="aerodrome_label";  // road numbers, road names, POIs
+   m.setLayoutProperty(l.id,"visibility",(labelsOn||!roadish)?"visible":"none");});}}
+ if(baseKey==="sat")SAT_LABELS.addTo(map);else map.removeLayer(SAT_LABELS);}
+function setLabels(on){labelsOn=on;applyLabels();}
+function setBase(k){Object.values(BASES).forEach(b=>map.removeLayer(b));BASES[k].addTo(map);baseKey=k;
+ document.querySelectorAll("#baseSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.b===k));applyLabels();drawNet();}
+BASES.map.addTo(map);
+$("baseSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setBase(b.dataset.b);});
+
+const netLayer=L.layerGroup().addTo(map);
+const regLayer=L.layerGroup().addTo(map);
+const REG_COLORS=["#e6194b","#3cb44b","#4363d8","#f58231","#911eb4","#42d4f4","#f032e6","#9a6324","#469990","#800000","#808000","#000075","#e6a700","#a9a9a9","#bf6b99","#2e8b57","#d2691e","#5f9ea0","#8b008b","#556b2f"];
+map.createPane("regions");map.getPane("regions").style.zIndex=350;map.createPane("regionLabels");map.getPane("regionLabels").style.zIndex=640;map.getPane("regionLabels").style.pointerEvents="none";
+const regCanvas=L.canvas({pane:"regions",tolerance:0});
+function ringsCenter(rings){let best=rings[0];rings.forEach(r=>{if(r.length>best.length)best=r;});let a=0,y=0,x=0;
+ for(let k=0;k<best.length-1;k++){const p=best[k],q=best[k+1],c=p[1]*q[0]-q[1]*p[0];a+=c;x+=(p[1]+q[1])*c;y+=(p[0]+q[0])*c;}
+ if(Math.abs(a)<1e-12)return L.latLngBounds(best).getCenter();return L.latLng(y/(3*a),x/(3*a));}
+function drawRegions(){regLayer.clearLayers();const picking=!$("regionPanel").hidden;
+ // 1) outside the chosen area: grey veil, so the chosen regions stand out
+ if(selR.size&&!picking){const holes=[];RG.regions.forEach((g,i)=>{if(selR.has(i))g.o.forEach(r=>holes.push(r));});
+  regLayer.addLayer(L.polygon([[[-89,-179],[-89,179],[89,179],[89,-179]],...holes],{renderer:regCanvas,stroke:false,fillColor:"#1b221e",fillOpacity:.12,interactive:false}));}
+ RG.regions.forEach((g,i)=>{const on=selR.has(i);if(!picking&&!on)return;const col=REG_COLORS[i%REG_COLORS.length];
+  if(picking){
+   // every region in its own color with a bold border and its name
+   const pg=L.polygon(g.o,{renderer:regCanvas,color:on?"#1b221e":col,weight:on?2:1.2,opacity:on?.9:.7,lineJoin:"round",fillColor:col,fillOpacity:on?0.3:0.12,interactive:true});
+   pg.on("click",()=>{selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(false);});
+   pg.on("mouseover",()=>pg.setStyle({fillOpacity:on?0.4:0.24}));pg.on("mouseout",()=>pg.setStyle({fillOpacity:on?0.3:0.12}));
+   regLayer.addLayer(pg);
+   regLayer.addLayer(L.marker(ringsCenter(g.o),{pane:"regionLabels",interactive:false,icon:L.divIcon({className:"rlbl",html:`<span class="${on?"on":""}">${g.name.split(":")[0]}</span>`,iconSize:[0,0]})}));
+  }else{
+   // chosen region: thick dark-green border (white halo underneath) + chosen councils outlined
+   regLayer.addLayer(L.polygon(g.o,{renderer:regCanvas,color:"#1b221e",weight:1.5,opacity:.55,lineJoin:"round",fill:false,interactive:false}));
+   RG.councils.filter(c=>c.region===i&&selC.has(c.id)).forEach(c=>regLayer.addLayer(L.polygon(c.o,{renderer:regCanvas,color:"#1b221e",weight:1,opacity:.45,dashArray:"3 4",fill:false,interactive:false})));
+  }});}
+function fitRegions(){if(!selR.size){map.setView([31.4,35.0],7.5);return;}const pts=[];
+ RG.regions.forEach((g,i)=>{if(selR.has(i))g.o.forEach(r=>r.forEach(p=>pts.push(p)));});if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[20,20]});}let selLayer=L.layerGroup().addTo(map);
+const netColor=()=>baseKey==="sat"?"#ffffff":"#8e44ad";
+let netMode="study"; // or "quizclick" | "hidden"
+function drawNet(){netLayer.clearLayers();if(netMode==="hidden")return;
+ const list=netMode==="quizclick"?quizClickSet:( $("showAll").checked?filtered():[] );
+ list.forEach(r=>{const w=r.dig<=2?2.6:(r.dig===3?1.8:1.3);
+  const pl=L.polyline(r.g,{renderer:canvas,color:netColor(),weight:w,opacity:.85});pl.roadN=r.n;
+  pl.on("click",ev=>{L.DomEvent.stop(ev);onRoadClick(r.n,ev.latlng);});
+  if(netMode==="study")pl.bindTooltip("כביש "+r.n,{sticky:true,direction:"top"});
+  netLayer.addLayer(pl);});}
+function onRoadClick(n,ll){if(netMode==="quizclick")quizClicked(n,ll);else{selectRoad(n,{fit:false});setGoogle(ll.lat,ll.lng,15);}}
+function labelsFor(r){const out=[];const total=r.g.reduce((s,l)=>s+l.length,0);let longest=r.g.slice().sort((a,b)=>b.length-a.length);
+ const k=Math.min(4,Math.max(1,Math.round(r.span/25)));const L0=longest[0];for(let i=1;i<=k;i++){out.push(L0[Math.floor(L0.length*i/(k+1))]);}return out;}
+let selMain=null;
+function roadW(){const z=map.getZoom();return z<=8?1.8:z<=9?2.2:z<=10?2.8:z<=11?3.3:z<=12?4:z<=13?5:z<=14?6:7.5;}
+map.on("zoomend",()=>{if(selMain)selMain.setStyle({weight:roadW()});});
+function showRoad(n,{hideNumber=false,fit=true}={}){selLayer.clearLayers();const r=byN[n];
+ const main=L.polyline(r.g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.95});selMain=main;
+ main.on("click",ev=>{L.DomEvent.stop(ev);if(netMode==="quizclick")return quizClicked(n,ev.latlng);setGoogle(ev.latlng.lat,ev.latlng.lng,16);});
+ selLayer.addLayer(main);
+ if(!hideNumber)labelsFor(r).forEach(p=>selLayer.addLayer(L.marker(p,{interactive:false,icon:L.divIcon({className:"lbl",html:`<span>${n}</span>`,iconSize:[0,0]})})));
+ if(fit)map.fitBounds([[r.bb[0],r.bb[1]],[r.bb[2],r.bb[3]]],{padding:[40,40],maxZoom:14});
+ $("mapCap").innerHTML=hideNumber?"<b>איזה כביש מסומן בכחול?</b>":`<b>כביש ${n}</b>: תוואי מלא. לחיצה על הכביש מזיזה את גוגל למקום.`;}
+
+/* ---------- Google view in the same tab ---------- */
+let gType="k",gPos=null;
+function setGoogle(lat,lng,z){gPos=[lat,lng,z||13];renderGoogle();}
+function renderGoogle(){if(!gPos)return;const [la,lo,z]=gPos;
+ $("gframe").src=`https://maps.google.com/maps?q=${la.toFixed(6)},${lo.toFixed(6)}&t=${gType}&z=${z}&hl=iw&output=embed`;
+ $("gCap").innerHTML=`גוגל מפות בנקודה שנבחרה · <a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${la},${lo}" target="_blank" rel="noopener">Street View כאן</a>`;}
+$("gSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;gType=b.dataset.g;document.querySelectorAll("#gSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderGoogle();});
+function hideGoogle(h){$("gframe").hidden=h;$("gcover").hidden=!h;}
+function midOf(r){const L0=r.g.slice().sort((a,b)=>b.length-a.length)[0];return L0[Math.floor(L0.length/2)];}
+
+/* ---------- study ---------- */
+let mode="study",cur=6;
+const sh=r=>`<span class="shield${r.dig===3?" d3":r.dig===4?" d4":""}">${r.n}</span>`;
+function detailHTML(r){const b=box(r.n);
+ const rule=r.ok?`תואם את הכלל (${r.n%2?"אי־זוגי":"זוגי"} = ${DIRS[r.d]})`:`לא תואם את כלל הזוגיות: המספר ${r.n%2?"אי־זוגי":"זוגי"} אבל הכביש רץ בעיקר ${DIRS[r.d==="NS"?"EW":"NS"]}`;
+ return `<div class="dhead"><span class="shield big${r.dig===3?" d3":r.dig===4?" d4":""}">${r.n}</span><div style="min-width:0"><h2>${r.title}</h2><span class="pill">${HW[r.h]||"כביש"}</span> <span class="pill">${DLABEL[r.dig]}</span></div></div>
+ <dl class="kv">${r.access?`<dt>מוביל אל</dt><dd>${r.f}</dd>`:`<dt>קצה אחד</dt><dd>${r.f||"—"}</dd><dt>קצה שני</dt><dd>${r.t||"—"}</dd>`}
+ ${r.v.length?`<dt>עובר ליד</dt><dd>${r.v.join(" · ")}</dd>`:""}<dt>כיוון</dt><dd>${rule}</dd><dt>אורך מקצה לקצה</dt><dd>כ־${Math.max(1,Math.round(r.span))} ק"מ בקו אווירי</dd>
+ <dt>שליטה</dt><dd><div class="dots">${[1,2,3,4,5].map(i=>`<i class="${b>=i?"on":""}"></i>`).join("")}</div></dd></dl>
+ ${r.facts.length?`<ul class="facts">${r.facts.map(f=>`<li>${f}</li>`).join("")}</ul>`:""}
+ <div class="glinks"><a href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent("כביש "+r.n)}" target="_blank" rel="noopener">תמונות מגוגל</a></div>`;}
+function selectRoad(n,{fit=true}={}){cur=n;const r=byN[n];$("detail").innerHTML=detailHTML(r);showRoad(n,{fit});
+ document.querySelectorAll("#list .roaditem").forEach(b=>b.setAttribute("aria-current",+b.dataset.n===n));
+ if(fit){const m=midOf(r);setGoogle(m[0],m[1],r.span>40?11:r.span>10?13:15);}}
+function renderList(){const q=$("search").value.trim();let list=filtered();
+ if(q)list=list.filter(r=>String(r.n).startsWith(q)||r.title.includes(q)||r.f.includes(q)||r.t.includes(q)||r.v.some(v=>v.includes(q)));
+ $("count").textContent=`${list.length} כבישים`;
+ $("list").innerHTML=list.slice(0,400).map(r=>`<button class="roaditem" type="button" data-n="${r.n}" aria-current="${r.n===cur}">${sh(r)}<span class="nm">${r.title}</span><span class="dots">${[1,2,3,4,5].map(i=>`<i class="${box(r.n)>=i?"on":""}"></i>`).join("")}</span></button>`).join("")+(list.length>400?`<p class="note">מוצגים 400 הראשונים. אפשר לצמצם בחיפוש.</p>`:"");}
+$("list").addEventListener("click",e=>{const b=e.target.closest(".roaditem");if(b)selectRoad(+b.dataset.n);});
+$("search").addEventListener("input",renderList);
+
+/* ---------- quiz ---------- */
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const dist=(a,b)=>Math.hypot((a.c[0]-b.c[0])*110,(a.c[1]-b.c[1])*94);
+let Q=null,quizClickSet=[];
+function pickWeighted(list,avoid){const c=list.filter(r=>!avoid.has(r.n));const L2=c.length?c:list;const w=L2.map(r=>(6-box(r.n))**2);let t=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<L2.length;i++){t-=w[i];if(t<=0)return L2[i];}return L2[0];}
+function near(r,k,pool,f=()=>true){return pool.filter(o=>o.n!==r.n&&f(o)).sort((a,b)=>dist(a,r)-dist(b,r)).slice(0,k*3).sort(()=>Math.random()-.5).slice(0,k);}
+let qmode="choice";
+try{qmode=localStorage.getItem("irl-qmode")||"choice";}catch(e){}
+const QMODE_NOTE={choice:"כביש מסומן בכחול ובוחרים את המספר מתוך 4 אפשרויות, או לוחצים על הכביש הנכון במפה.",type:"כביש מסומן בכחול על המפה, ובלי שום אפשרויות מקלידים את מספר הכביש."};
+function renderQmode(){document.querySelectorAll("#qmodeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===qmode));$("qmodeNote").textContent=QMODE_NOTE[qmode];}
+$("qmodeSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;qmode=b.dataset.m;try{localStorage.setItem("irl-qmode",qmode);}catch(e){}renderQmode();});
+function makeQ(r,pool){
+ if(qmode==="type")return{t:"type",r,text:"מה מספר הכביש המסומן בכחול?"};
+ // wrong answers and clickable roads come only from the current selection (digits + regions), nearest first
+ const inSel=filtered();const sameDig=inSel.length>=4?inSel:ROADS.filter(o=>digits.has(o.dig));
+ const types=["map","map","click"];
+ const t=types[Math.floor(Math.random()*types.length)];
+ const opt4=ds=>shuffle([r,...ds]);
+ if(t==="map"){const o=opt4(near(r,3,sameDig));return{t,r,text:"איזה כביש מסומן בכחול על המפה?",opts:o.map(x=>({label:sh(x),ok:x.n===r.n}))};}
+ if(t==="click"){const ds=near(r,7,sameDig);return{t,r,text:`לחץ על כביש ${r.n} במפה`,set:[r,...ds]};}
+ if(t==="ends"){const o=opt4(near(r,3,sameDig,x=>!x.access&&x.f&&x.t&&!(x.f===r.f&&x.t===r.t)));return{t,r,text:`בין אילו מקומות עובר כביש ${r.n}?`,opts:o.map(x=>({label:`${x.f} – ${x.t}`,ok:x.n===r.n}))};}
+ if(t==="access"){const o=opt4(near(r,3,sameDig,x=>x.f!==r.f));return{t,r,text:`איזה כביש הוא כביש הגישה ל${r.f}?`,opts:o.map(x=>({label:sh(x),ok:x.n===r.n}))};}
+ if(t==="via"){const place=r.v[Math.floor(Math.random()*r.v.length)];const o=opt4(near(r,3,sameDig,x=>!x.v.includes(place)&&x.f!==place&&x.t!==place));
+   return{t,r,text:`איזה כביש עובר ליד ${place}?`,opts:o.map(x=>({label:sh(x),ok:x.n===r.n}))};}
+ return{t:"dir",r,text:`לפי חוק הזוגיות, לאיזה כיוון רץ כביש ${r.n}?`,opts:[{label:DIRS.NS,ok:r.d==="NS"},{label:DIRS.EW,ok:r.d==="EW"}]};}
+function startQuiz(){const pl=filtered();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 כבישים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
+ runRound(shuffle(pl.slice()));}
+function runRound(roads){const qs=roads.map(r=>makeQ(r));
+ Q={qs,i:0,res:[]};$("quizSetup").hidden=true;$("quizBox").hidden=false;showQ();}
+const bar=()=>{const N=Q.qs.length,ok=Q.res.filter(Boolean).length,no=Q.res.length-ok;
+ return `<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${Q.res.length}"><i class="ok" style="width:${100*ok/N}%"></i><i class="no" style="width:${100*no/N}%"></i></div>
+ <div class="note" style="margin-top:4px">✓ ${ok} נכונות · ✗ ${no} טעויות · נשארו ${N-Q.res.length}</div>`;};
+function hideAnswers(on){setLabels(!on);hideGoogle(on);}
+function showQ(){const q=Q.qs[Q.i];hideAnswers(true);selLayer.clearLayers();
+ $("quizBox").innerHTML=`<div class="rowsb"><span class="eyebrow">שאלה ${Q.i+1} מתוך ${Q.qs.length}</span><button class="btn ghost" id="quitQ" type="button">סיים סבב</button></div>${bar()}
+ <p class="q">${q.text}</p>${q.t==="type"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="מספר הכביש" aria-label="מספר הכביש" style="font:700 1.6rem var(--f-num);width:8ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="click"?`<div class="clickhint">הכבישים באזור מסומנים בסגול, בלי מספרים. שמות היישובים מופיעים כדי לעזור בהתמצאות. לחץ על הכביש שלדעתך הוא ${q.r.n}.</div>`:`<div class="opts">${q.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${i+1}</span><span style="min-width:0">${o.label}</span></button>`).join("")}</div>`}<div id="fb"></div>`;
+ $("quitQ").onclick=()=>Q.res.length?summary():endQuiz();
+ if(q.t==="map"||q.t==="type"){netMode="hidden";drawNet();showRoad(q.r.n,{hideNumber:true});}
+ if(q.t==="type"){const f=$("typeForm"),inp=$("typeIn");inp.addEventListener("input",()=>{inp.value=inp.value.replace(/\D/g,"");});
+   f.addEventListener("submit",e=>{e.preventDefault();const v=inp.value.trim();if(!v){inp.focus();return;}if(Q.res.length>Q.i)return;
+     const ok=+v===q.r.n;inp.disabled=true;$("typeGo").disabled=true;inp.style.borderColor=ok?"var(--good)":"var(--bad)";inp.style.background=ok?"var(--good-bg)":"var(--bad-bg)";
+     finish(ok,ok?"":`כתבת ${v}.`);});
+   setTimeout(()=>inp.focus({preventScroll:true}),50);}
+ else if(q.t==="click"){netMode="quizclick";quizClickSet=q.set;drawNet();
+   // frame the target road with a margin (half its size, at least ~5 km) so neighbouring roads show around it
+   const bb=q.r.bb,mLat=Math.max((bb[2]-bb[0])*0.5,0.045),mLon=Math.max((bb[3]-bb[1])*0.5,0.053);
+   map.fitBounds([[bb[0]-mLat,bb[1]-mLon],[bb[2]+mLat,bb[3]+mLon]],{padding:[10,10],maxZoom:14});
+   $("mapCap").innerHTML=`<b>לחץ על כביש ${q.r.n}</b>`;}
+ else if(q.t!=="map"){netMode="hidden";drawNet();map.setView([31.6,35.0],7.5);$("mapCap").textContent="המפה תציג את הכביש אחרי התשובה";}}
+function quizClicked(n,ll){const q=Q&&Q.qs[Q.i];if(!q||q.t!=="click"||Q.res.length>Q.i)return;finish(n===q.r.n,n!==q.r.n?`לחצת על כביש ${n}.`:"");}
+function answer(i){const q=Q.qs[Q.i];if(Q.res.length>Q.i||q.t==="click")return;const ok=q.opts[i].ok;
+ document.querySelectorAll(".opt").forEach((b,j)=>{b.disabled=true;if(q.opts[j].ok)b.classList.add("right");else if(j===i)b.classList.add("wrong");});finish(ok,"");}
+function finish(ok,extra){const q=Q.qs[Q.i];Q.res.push(ok);mark(q.r.n,ok);hideAnswers(false);netMode=q.t==="click"?"quizclick":"hidden";drawNet();showRoad(q.r.n,{fit:q.t!=="click"});
+ const m=midOf(q.r);setGoogle(m[0],m[1],q.r.span>40?11:13);const r=q.r;
+ $("fb").innerHTML=`<div class="feedback ${ok?"ok":"no"}"><strong>${ok?"נכון.":"לא הפעם."}</strong> ${extra} כביש <b>${r.n}</b>: ${r.access?`כביש הגישה ל${r.f}`:`${r.f} – ${r.t}`}.${r.v.length?` עובר ליד ${r.v.slice(0,4).join(", ")}.`:""}
+ <div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
+ $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});}
+function next(){Q.i++;if(Q.i<Q.qs.length)showQ();else summary();}
+function summary(){const ans=Q.res.length;const c=Q.res.filter(Boolean).length;const miss=[...new Set(Q.qs.filter((q,i)=>!Q.res[i]).map(q=>q.r.n))];netMode="study";drawNet();
+ $("quizBox").innerHTML=`<div class="eyebrow">סיכום הסבב</div>${bar()}<div class="rowsb" style="margin:14px 0"><div><div class="big">${c}/${ans}</div><div class="note">תשובות נכונות${ans<Q.qs.length?` (נענו ${ans} מתוך ${Q.qs.length})`:""}</div></div><div class="row">${miss.length?`<button class="btn" id="retryMiss" type="button">סבב על הטעויות (${miss.length})</button>`:""}<button class="btn${miss.length?" ghost":""}" id="again" type="button">סבב מלא חדש</button><button class="btn ghost" id="toSetup" type="button">חזרה</button></div></div>
+ ${miss.length?`<p style="margin:0 0 8px">כדאי לחזור על:</p><div class="list">${miss.map(n=>`<button class="roaditem" type="button" data-study="${n}">${sh(byN[n])}<span class="nm">${byN[n].title}</span></button>`).join("")}</div>`:`<p>סבב נקי, בלי טעויות.</p>`}`;
+ $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(miss.map(n=>byN[n])));
+ document.querySelectorAll("[data-study]").forEach(b=>b.onclick=()=>{setMode("study");selectRoad(+b.dataset.study);});}
+function endQuiz(){Q=null;hideAnswers(false);netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
+$("quizBox").addEventListener("click",e=>{const b=e.target.closest(".opt");if(b&&!b.disabled)answer(+b.dataset.i);});
+document.addEventListener("keydown",e=>{if(mode!=="quiz"||!Q||e.target.tagName==="INPUT")return;
+ if(/^[1-4]$/.test(e.key)){const q=Q.qs[Q.i];const i=+e.key-1;if(q&&q.opts&&i<q.opts.length&&Q.res.length===Q.i)answer(i);}
+ else if(e.key==="Enter"&&Q.res.length>Q.i&&document.activeElement.id!=="nextQ"){e.preventDefault();next();}});
+$("startQuiz").onclick=startQuiz;
+
+/* ---------- tabs ---------- */
+function setMode(m){mode=m;["study","quiz","rules"].forEach(k=>{$("tab-"+k).setAttribute("aria-selected",k===m);$("view-"+k).hidden=k!==m;});
+ if(m!=="quiz"&&Q)endQuiz();
+ if(m==="study"){netMode="study";drawNet();selectRoad(cur);}else if(m==="quiz"&&!Q){netMode="study";drawNet();}
+ setTimeout(()=>map.invalidateSize(),60);}
+["study","quiz","rules"].forEach(k=>$("tab-"+k).onclick=()=>setMode(k));
+
+renderChips();renderQmode();onFilter();drawRegions();setMode("study");
+</script>
+</body>
+</html>
