@@ -294,13 +294,16 @@ function saveRegions(){try{localStorage.setItem("irl-regions",JSON.stringify({r:
 const inArea=r=>{if(!selR.size)return true;return r.R.some(g=>{if(!selR.has(g))return false;const cs=[...selC].filter(c=>RG.councils[c].region===g);return !cs.length||r.C.some(c=>cs.includes(c));});};
 function filtered(){return ROADS.filter(r=>digits.has(r.dig)&&inArea(r));}
 // a junction is in the selection if one of its roads is of a selected digit level and it lies in a selected region
-function filteredJ(){return JUNC.filter(j=>j.rs.some(n=>digits.has(byN[n].dig))&&inArea(j));}
+// a junction counts only as a meeting of roads of the selected levels: at least two such roads must meet there
+const selRoads=j=>j.rs.filter(n=>digits.has(byN[n].dig));
+const jOK=j=>selRoads(j).length>=2;
+function filteredJ(){return JUNC.filter(j=>jOK(j)&&inArea(j));}
 let subject="roads";try{subject=localStorage.getItem("irl-subject")||"roads";}catch(e){}
 const wantR=()=>subject!=="junctions",wantJ=()=>subject!=="roads";
 function renderSubject(){document.querySelectorAll("#subjSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===subject));$("tab-rules").hidden=subject==="junctions";}
 function regionLabel(){if(!selR.size)return "כל הארץ";const n=[...selR].map(i=>RG.regions[i].name.split(":")[0]);
  let t=n.length>2?`${n.slice(0,2).join(", ")} ועוד ${n.length-2}`:n.join(", ");if(selC.size)t+=` · ${selC.size} מועצות`;return t;}
-function renderRegions(){const items=[...(wantR()?ROADS:[]),...(wantJ()?JUNC:[])];const dOK=x=>x.rs?x.rs.some(n=>digits.has(byN[n].dig)):digits.has(x.dig);
+function renderRegions(){const items=[...(wantR()?ROADS:[]),...(wantJ()?JUNC:[])];const dOK=x=>x.rs?jOK(x):digits.has(x.dig);
  $("regionBtn").textContent=regionLabel()+" ▾";
  $("regChips").innerHTML=RG.regions.map((g,i)=>{const n=items.filter(r=>dOK(r)&&r.R.includes(i)).length;return `<button class="chip" type="button" data-r="${i}" aria-pressed="${selR.has(i)}">${g.name}<small>${n}</small></button>`;}).join("");
  const cs=RG.councils.filter(c=>selR.has(c.region));$("councilBox").hidden=!cs.length;
@@ -442,7 +445,7 @@ function renderRoadList(){const q=$("search").value.trim();let list=filtered();
 $("list").addEventListener("click",e=>{const b=e.target.closest(".roaditem");if(!b)return;if(b.dataset.j!==undefined)selectJunction(+b.dataset.j);else selectRoad(+b.dataset.n);});
 /* ---------- junctions: study ---------- */
 let curJ=null;const jLayer=L.layerGroup().addTo(map);
-const jsh=j=>`<span class="jshields">${j.rs.map(n=>sh(byN[n])).join("")}</span>`;
+const jsh=j=>`<span class="jshields">${reqRoads(j).map(n=>sh(byN[n])).join("")}</span>`;
 const dots=v=>`<span class="dots">${[1,2,3,4,5].map(i=>`<i class="${v>=i?"on":""}"></i>`).join("")}</span>`;
 function renderJList(){const q=$("search").value.trim();let list=filteredJ().slice().sort((a,b)=>a.name.localeCompare(b.name,"he"));
  if(q)list=list.filter(j=>j.name.includes(q)||j.rs.some(n=>String(n).startsWith(q)));
@@ -450,14 +453,14 @@ function renderJList(){const q=$("search").value.trim();let list=filteredJ().sli
  $("list").innerHTML=list.slice(0,400).map(j=>`<button class="roaditem" type="button" data-j="${j.id}" aria-current="${j.id===curJ}"><span class="nm">${j.name}</span>${jsh(j)}${dots(jbox(j.id))}</button>`).join("")+(list.length>400?`<p class="note">מוצגים 400 הראשונים. אפשר לצמצם בחיפוש.</p>`:"");}
 // draw a junction: its roads in blue (thin) + a red point; optional name label
 function showJunction(j,{name=true,fit=true,roads=true,zoom=14}={}){selLayer.clearLayers();jLayer.clearLayers();selMain=null;
- if(roads)j.rs.forEach(n=>{const r=byN[n];selLayer.addLayer(L.polyline(r.g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false}));});
+ if(roads)reqRoads(j).forEach(n=>{const r=byN[n];selLayer.addLayer(L.polyline(r.g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false}));});
  jLayer.addLayer(L.circleMarker(j.p,{radius:8,color:"#ffffff",weight:3,fillColor:"#d93025",fillOpacity:1}));
  if(name)jLayer.addLayer(L.marker(j.p,{interactive:false,icon:L.divIcon({className:"jlbl",html:`<span>${j.name}</span>`,iconSize:[0,0]})}));
  if(fit)map.setView(j.p,zoom);
- $("mapCap").innerHTML=name?`<b>${j.name}</b>: ${j.rs.map(n=>"כביש "+n).join(" · ")}`:"<b>איזה צומת או מחלף מסומן באדום?</b>";}
+ $("mapCap").innerHTML=name?`<b>${j.name}</b>: ${reqRoads(j).map(n=>"כביש "+n).join(" · ")}`:"<b>איזה צומת או מחלף מסומן באדום?</b>";}
 function jDetailHTML(j){const regs=j.R.map(i=>RG.regions[i].name).join(", ");
  return `<div class="dhead"><span class="shield big" style="background:#d93025;border-color:#fff;color:#fff">${j.kind==="i"?"⇄":"✕"}</span><div style="min-width:0"><h2>${j.name}</h2><span class="pill">${KIND[j.kind]}</span> <span class="pill">${regs}</span></div></div>
- <dl class="kv"><dt>כבישים שנפגשים כאן</dt><dd>${j.rs.map(n=>`<button class="roaditem" type="button" data-goroad="${n}" style="display:inline-flex;padding:3px 6px;margin:2px">${sh(byN[n])}<span class="nm">${byN[n].title}</span></button>`).join(" ")}</dd>
+ <dl class="kv"><dt>כבישים שנפגשים כאן</dt><dd>${[...reqRoads(j),...j.rs.filter(n=>!reqRoads(j).includes(n))].map(n=>`<button class="roaditem" type="button" data-goroad="${n}" style="display:inline-flex;padding:3px 6px;margin:2px">${sh(byN[n])}<span class="nm">${byN[n].title}</span></button>`).join(" ")}</dd>
  <dt>שליטה</dt><dd>${dots(jbox(j.id))}</dd></dl>`;}
 function selectJunction(id,{fit=true}={}){const j=byJ[id];if(!j)return;curJ=id;$("detail").innerHTML=jDetailHTML(j);showJunction(j,{fit});
  document.querySelectorAll("#list .roaditem").forEach(b=>b.setAttribute("aria-current",+b.dataset.j===id));
@@ -500,7 +503,7 @@ function makeQ(r,pool){
 const jdist=(a,b)=>Math.hypot((a.p[0]-b.p[0])*110,(a.p[1]-b.p[1])*94);
 function nearJ(j,k,pool,f=()=>true){const seen=new Set([j.name]);return pool.filter(o=>o.id!==j.id&&f(o)).sort((a,b)=>jdist(a,j)-jdist(b,j)).filter(o=>!seen.has(o.name)&&seen.add(o.name)).slice(0,k*2).sort(()=>Math.random()-.5).slice(0,k);}
 // roads of the selected levels at a junction (what the player is expected to know)
-const reqRoads=j=>{const r=j.rs.filter(n=>digits.has(byN[n].dig));return r.length?r:j.rs;};
+const reqRoads=j=>{const r=selRoads(j);return r.length?r:j.rs;};
 function makeQJ(j){
  if(qmode==="type")return{t:"jtype",j,text:`אילו כבישים נפגשים ב${j.name}?`};
  const inSel=filteredJ();const pool=inSel.length>=4?inSel:JUNC;
@@ -560,11 +563,11 @@ function answer(i){const q=Q.qs[Q.i];if(Q.res.length>Q.i||q.t==="click"||q.t==="
 function finish(ok,extra){const q=Q.qs[Q.i];
  if(q.j){Q.res.push(ok);markJ(q.j.id,ok);hideAnswers(false);const j=q.j;
   if(q.t==="jclick"){jLayer.eachLayer(l=>{if(l.getLatLng){const id=q.set.find(x=>x.p[0]===l.getLatLng().lat&&x.p[1]===l.getLatLng().lng);if(id&&id.id!==j.id)l.bindTooltip(id.name,{permanent:true,direction:"top",opacity:.85});}});
-   j.rs.forEach(n=>selLayer.addLayer(L.polyline(byN[n].g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false})));
+   reqRoads(j).forEach(n=>selLayer.addLayer(L.polyline(byN[n].g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false})));
    jLayer.addLayer(L.circleMarker(j.p,{radius:9,color:"#ffffff",weight:3,fillColor:"#d93025",fillOpacity:1}));jLayer.addLayer(L.marker(j.p,{interactive:false,icon:L.divIcon({className:"jlbl",html:`<span>${j.name}</span>`,iconSize:[0,0]})}));}
   else showJunction(j,{zoom:13});
   setGoogle(j.p[0],j.p[1],16);
-  $("fb").innerHTML=`<div class="feedback ${ok?"ok":"no"}"><strong>${ok?"נכון.":"לא הפעם."}</strong> ${extra} <b>${j.name}</b>: נפגשים כאן ${j.rs.map(n=>"כביש "+n).join(", ")}.
+  $("fb").innerHTML=`<div class="feedback ${ok?"ok":"no"}"><strong>${ok?"נכון.":"לא הפעם."}</strong> ${extra} <b>${j.name}</b>: נפגשים כאן ${reqRoads(j).map(n=>"כביש "+n).join(", ")}.
   <div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
   $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});return;}
  Q.res.push(ok);mark(q.r.n,ok);hideAnswers(false);netMode=q.t==="click"?"quizclick":"hidden";drawNet();showRoad(q.r.n,{fit:q.t!=="click"});
