@@ -109,6 +109,9 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
 .rlbl{background:none;border:none}
 .rlbl span{position:absolute;left:0;top:0;display:inline-block;transform:translate(-50%,-50%);background:rgba(255,255,255,.92);color:#1b221e;font:700 12px/1.3 "Assistant",system-ui,sans-serif;padding:2px 7px;border-radius:5px;border:1px solid rgba(0,0,0,.25);white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .rlbl span.on{background:#0a6a4e;color:#fff;border-color:#0a6a4e}
+.rlbl span.tog{cursor:pointer;pointer-events:auto;transition:transform .1s}
+.rlbl span.tog:hover{box-shadow:0 0 0 2px #e9ad00,0 1px 3px rgba(0,0,0,.3)}
+#regClear{padding:4px 10px}
 .lbl span{position:absolute;left:0;top:0;display:inline-block;transform:translate(-50%,-50%);background:#1a73e8;color:#fff;font:700 14px/1.25 "Barlow Condensed",Arial Narrow,sans-serif;padding:1px 7px;border-radius:4px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);white-space:nowrap}
 .leaflet-container{font-family:var(--f-body)}
 </style>
@@ -135,7 +138,7 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
   <div class="filters">
     <div class="row"><span class="flabel">נושא</span><div class="seg" id="subjSeg"><button type="button" data-s="roads" aria-pressed="true">כבישים</button><button type="button" data-s="junctions" aria-pressed="false">צמתים ומחלפים</button><button type="button" data-s="both" aria-pressed="false">כבישים + צמתים</button></div></div>
     <div class="row"><span class="flabel">ספרות</span><div class="row" id="digitChips"></div></div>
-    <div class="row"><span class="flabel">אזור</span><button class="chip" type="button" id="regionBtn" aria-expanded="false" aria-controls="regionPanel"></button></div>
+    <div class="row"><span class="flabel">אזור</span><button class="chip" type="button" id="regionBtn" aria-expanded="false" aria-controls="regionPanel"></button><button class="chip" type="button" id="regClear" hidden title="ביטול סינון האזורים">✕ נקה</button></div>
     <div class="row"><label class="row note" style="gap:6px"><input type="checkbox" id="showAll"> סמן בסגול את כל הכבישים בסינון</label></div>
   </div>
 
@@ -310,11 +313,12 @@ function setPicking(open){$("regionPanel").hidden=!open;document.querySelector("
   const m=document.querySelector(".main");if(m.getBoundingClientRect().top<0||m.getBoundingClientRect().top>innerHeight*.5)m.scrollIntoView({behavior:"smooth",block:"start"});}
  else if(mode==="study"&&typeof studyShow==="function")studyShow();setTimeout(()=>map.invalidateSize(),60);}
 $("regionBtn").onclick=()=>setPicking($("regionPanel").hidden);
+$("regClear").onclick=()=>{selR.clear();selC.clear();regionsChanged(true);};
 $("regDone").onclick=()=>setPicking(false);
 $("regAll").onclick=()=>{selR.clear();selC.clear();regionsChanged(true);};
 $("regChips").addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;const i=+b.dataset.r;selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(true);});
 $("councilChips").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;const i=+b.dataset.c;selC.has(i)?selC.delete(i):selC.add(i);regionsChanged(true);});
-function onFilter(){if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();$("regionBtn").textContent=regionLabel()+" ▾";renderList();drawNet();stats();$("quizPoolNote").textContent=subject==="junctions"?`הסבב יכלול ${filteredJ().length} שאלות, שאלה אחת על כל צומת ומחלף בסינון, בסדר אקראי.`:subject==="both"?`הסבב יכלול ${filtered().length+filteredJ().length} שאלות: ${filtered().length} כבישים ו־${filteredJ().length} צמתים ומחלפים, מעורבבים בסדר אקראי.`:`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;
+function onFilter(){if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();$("regionBtn").textContent=regionLabel()+" ▾";$("regClear").hidden=!selR.size;renderList();drawNet();stats();$("quizPoolNote").textContent=subject==="junctions"?`הסבב יכלול ${filteredJ().length} שאלות, שאלה אחת על כל צומת ומחלף בסינון, בסדר אקראי.`:subject==="both"?`הסבב יכלול ${filtered().length+filteredJ().length} שאלות: ${filtered().length} כבישים ו־${filteredJ().length} צמתים ומחלפים, מעורבבים בסדר אקראי.`:`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;
  const ml=$("sMasterLbl");if(ml)ml.textContent=subject==="junctions"?"צמתים בשליטה":subject==="both"?"כבישים וצמתים בשליטה":"כבישים בשליטה";renderQmode();}
 
 /* ---------- map ---------- */
@@ -351,7 +355,7 @@ $("baseSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(
 const netLayer=L.layerGroup().addTo(map);
 const regLayer=L.layerGroup().addTo(map);
 const REG_COLORS=["#e6194b","#3cb44b","#4363d8","#f58231","#911eb4","#42d4f4","#f032e6","#9a6324","#469990","#800000","#808000","#000075","#e6a700","#a9a9a9","#bf6b99","#2e8b57","#d2691e","#5f9ea0","#8b008b","#556b2f"];
-map.createPane("regions");map.getPane("regions").style.zIndex=350;map.createPane("regionLabels");map.getPane("regionLabels").style.zIndex=640;map.getPane("regionLabels").style.pointerEvents="none";
+map.createPane("regions");map.getPane("regions").style.zIndex=350;map.createPane("regionLabels");map.getPane("regionLabels").style.zIndex=640;map.getPane("regionLabels").style.pointerEvents="auto";
 const regCanvas=L.canvas({pane:"regions",tolerance:0});
 function ringsCenter(rings){let best=rings[0];rings.forEach(r=>{if(r.length>best.length)best=r;});let a=0,y=0,x=0;
  for(let k=0;k<best.length-1;k++){const p=best[k],q=best[k+1],c=p[1]*q[0]-q[1]*p[0];a+=c;x+=(p[1]+q[1])*c;y+=(p[0]+q[0])*c;}
@@ -367,11 +371,17 @@ function drawRegions(){regLayer.clearLayers();const picking=!$("regionPanel").hi
    pg.on("click",()=>{selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(false);});
    pg.on("mouseover",()=>pg.setStyle({fillOpacity:on?0.4:0.24}));pg.on("mouseout",()=>pg.setStyle({fillOpacity:on?0.3:0.12}));
    regLayer.addLayer(pg);
-   regLayer.addLayer(L.marker(ringsCenter(g.o),{pane:"regionLabels",interactive:false,icon:L.divIcon({className:"rlbl",html:`<span class="${on?"on":""}">${g.name.split(":")[0]}</span>`,iconSize:[0,0]})}));
+   // the region's name on the map is a toggle: click to add it to the filter, click again to remove it
+   const lb=L.marker(ringsCenter(g.o),{pane:"regionLabels",interactive:true,keyboard:false,icon:L.divIcon({className:"rlbl",html:`<span class="tog ${on?"on":""}" title="${on?"הסר מהסינון":"הוסף לסינון"}">${on?"✓ ":""}${g.name.split(":")[0]}</span>`,iconSize:[0,0]})});
+   lb.on("click",e=>{L.DomEvent.stop(e);selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(false);});
+   regLayer.addLayer(lb);
   }else{
    // chosen region: thick dark-green border (white halo underneath) + chosen councils outlined
    regLayer.addLayer(L.polygon(g.o,{renderer:regCanvas,color:"#1b221e",weight:1.5,opacity:.55,lineJoin:"round",fill:false,interactive:false}));
    RG.councils.filter(c=>c.region===i&&selC.has(c.id)).forEach(c=>regLayer.addLayer(L.polygon(c.o,{renderer:regCanvas,color:"#1b221e",weight:1,opacity:.45,dashArray:"3 4",fill:false,interactive:false})));
+   // selected region keeps its name on the map with an ✕ that removes it from the filter (not during a quiz round)
+   if(!Q){const lb=L.marker(ringsCenter(g.o),{pane:"regionLabels",interactive:true,keyboard:false,icon:L.divIcon({className:"rlbl",html:`<span class="tog on" title="הסר מהסינון">${g.name.split(":")[0]} ✕</span>`,iconSize:[0,0]})});
+    lb.on("click",e=>{L.DomEvent.stop(e);selR.delete(i);regionsChanged(!selR.size);});regLayer.addLayer(lb);}
   }});}
 function fitRegions(){if(!selR.size){map.setView([31.4,35.0],7.5);return;}const pts=[];
  RG.regions.forEach((g,i)=>{if(selR.has(i))g.o.forEach(r=>r.forEach(p=>pts.push(p)));});if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[20,20]});}let selLayer=L.layerGroup().addTo(map);
@@ -508,7 +518,7 @@ function startQuiz(){if(subject==="both"){const pr=filtered(),pj=filteredJ();if(
  const pl=filtered();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 כבישים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
  runRound(shuffle(pl.slice()));}
 function runRound(items){const qs=items.map(x=>x.rs?makeQJ(x):makeQ(x));
- Q={qs,i:0,res:[]};$("quizSetup").hidden=true;$("quizBox").hidden=false;showQ();}
+ Q={qs,i:0,res:[]};drawRegions();$("quizSetup").hidden=true;$("quizBox").hidden=false;showQ();}
 const bar=()=>{const N=Q.qs.length,ok=Q.res.filter(Boolean).length,no=Q.res.length-ok;
  return `<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${Q.res.length}"><i class="ok" style="width:${100*ok/N}%"></i><i class="no" style="width:${100*no/N}%"></i></div>
  <div class="note" style="margin-top:4px">✓ ${ok} נכונות · ✗ ${no} טעויות · נשארו ${N-Q.res.length}</div>`;};
@@ -572,7 +582,7 @@ function summary(){const ans=Q.res.length;const c=Q.res.filter(Boolean).length;j
  $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(miss.slice()));
  document.querySelectorAll("[data-study]").forEach(b=>b.onclick=()=>{setMode("study");selectRoad(+b.dataset.study);});
  document.querySelectorAll("[data-studyj]").forEach(b=>b.onclick=()=>{setMode("study");selectJunction(+b.dataset.studyj);});}
-function endQuiz(){Q=null;hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
+function endQuiz(){Q=null;drawRegions();hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
 $("quizBox").addEventListener("click",e=>{const b=e.target.closest(".opt");if(b&&!b.disabled)answer(+b.dataset.i);});
 document.addEventListener("keydown",e=>{if(mode!=="quiz"||!Q||e.target.tagName==="INPUT")return;
  if(/^[1-4]$/.test(e.key)){const q=Q.qs[Q.i];const i=+e.key-1;if(q&&q.opts&&i<q.opts.length&&Q.res.length===Q.i)answer(i);}
