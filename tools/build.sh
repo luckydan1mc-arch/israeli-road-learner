@@ -13,6 +13,7 @@ for k, r in d.items():
     out[k] = {"g": r["g"], "f": r["from"], "t": r["to"], "v": r["via"][:6], "d": r["dir"], "ok": int(r["dir"] == r["geo"]), "h": r["hw"], "r": r["reg"], "s": r["span"]}
 open("roads_min.json", "w").write(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 PY
+python3 junctions.py "$PBF" roads2.json junctions.json
 python3 regions.py "$PBF"
 python3 - <<'PY'
 s = open("app_template.html").read()

@@ -1,7 +1,7 @@
 """Assign every road to regions (groups of regional councils) and to regional councils.
 Writes regions.json: {regions:[{id,name,councils:[cid..],outline:[[[lat,lon]..]..]}], councils:[{id,name,region}], roads:{ref:{R:[..],C:[..]}}}
 """
-import json, math, sys, collections
+import json, math, sys, collections, os
 import osmium
 from shapely.geometry import Polygon, MultiPolygon, Point, LineString
 from shapely.ops import unary_union
@@ -300,9 +300,15 @@ def rings(geom, tol=0.0004):
         for h in p.interiors:
             if Polygon(h).area >= 2e-6: res.append([[round(y, 5), round(x, 5)] for x, y in h.coords])
     return res
+# junctions / interchanges: region and council of each point
+JN = json.load(open("junctions.json")) if os.path.exists("junctions.json") else []
+junc_out = []
+for j in JN:
+    la, lo = j["p"]; cid = council_at(Point(lo, la))
+    junc_out.append({**j, "R": [reg_ids.index(region_at(la, lo))], "C": [cid] if cid is not None else []})
 regions_out = [{"id": rid, "name": name, "councils": [c[0] for c in councils if c[2] == rid], "o": rings(reg_poly[rid])} for rid, name, _ in REGIONS]
 councils_out = [{"id": c[0], "name": c[1], "region": reg_ids.index(c[2]), "o": rings(c[3].intersection(land), 0.0006)} for c in councils]
-json.dump({"regions": regions_out, "councils": councils_out, "roads": out_roads}, open("regions.json", "w"), ensure_ascii=False, separators=(",", ":"))
+json.dump({"regions": regions_out, "councils": councils_out, "roads": out_roads, "junctions": junc_out}, open("regions.json", "w"), ensure_ascii=False, separators=(",", ":"))
 
 # report
 tot = sum(reg_poly[r].area for r in reg_ids); ov = 0
