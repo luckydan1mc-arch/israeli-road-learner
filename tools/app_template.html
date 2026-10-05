@@ -2,8 +2,16 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Israeli Road Learner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="לומד הכבישים">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0a6a4e">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Barlow+Condensed:wght@600;700&family=Secular+One&display=swap">
@@ -119,6 +127,39 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
 #regClear{padding:4px 10px}
 .lbl span{position:absolute;left:0;top:0;display:inline-block;transform:translate(-50%,-50%);background:#1a73e8;color:#fff;font:700 14px/1.25 "Barlow Condensed",Arial Narrow,sans-serif;padding:1px 7px;border-radius:4px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);white-space:nowrap}
 .leaflet-container{font-family:var(--f-body)}
+/* Phone layout: map, then the working panel, then Google view; bigger touch targets; safe areas */
+body{padding-top:max(16px,env(safe-area-inset-top));padding-right:max(16px,env(safe-area-inset-right));padding-left:max(16px,env(safe-area-inset-left));padding-bottom:max(40px,env(safe-area-inset-bottom))}
+html{-webkit-text-size-adjust:100%}
+button,.chip,.tab,.opt,.roaditem{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media (hover:none){.opt .k{display:none}}
+@media (max-width:900px){
+  body{padding-top:max(10px,env(safe-area-inset-top));padding-right:max(10px,env(safe-area-inset-right));padding-left:max(10px,env(safe-area-inset-left))}
+  .wrap{gap:10px}
+  header.board{padding:10px 14px;gap:8px}
+  .board h1{font-size:1.2rem}
+  .board .en{font-size:.8rem}
+  .stats{gap:14px;width:100%;justify-content:space-between}
+  .stat b{font-size:1.3rem}
+  .stat span{font-size:.72rem}
+  nav[role=tablist]{width:100%;flex-wrap:nowrap}
+  nav[role=tablist] .tab{flex:1;padding:10px 6px;text-align:center}
+  .filters{padding:8px 10px;gap:8px 12px}
+  .chip{min-height:38px}
+  .seg button{min-height:36px}
+  .main{display:flex;flex-direction:column;gap:10px}
+  .mapcol{display:contents}
+  .mapcol>.mapbox:first-child{order:1}
+  .main>.panel{order:2;width:100%}
+  .mapcol>.mapbox:last-child{order:3}
+  .mapbox{padding:8px}
+  #map{height:46vh;height:46dvh;min-height:280px}
+  #gframe,.gcover{height:300px}
+  .card{padding:12px}
+  .opt{padding:13px 11px}
+  .btn{padding:12px 18px}
+  .list{max-height:60vh}
+  .q{font-size:1.2rem}
+}
 </style>
 </head>
 <body>
