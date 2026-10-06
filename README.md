@@ -36,3 +36,9 @@ tools/build.sh israel-and-palestine-latest.osm.pbf
 - הקוד: MIT.
 - נתוני הכבישים והגבולות: © תורמי OpenStreetMap, ברישיון [ODbL](https://opendatacommons.org/licenses/odbl/).
 - מפת רקע: [OpenFreeMap](https://openfreemap.org) © OpenStreetMap. תצלומי לוויין: Esri.
+
+## גרסה לא־מקוונת (בלי אינטרנט)
+
+בתיקייה `offline/` יש גרסה שעובדת במחשב בלי חיבור לרשת: `israeli-road-learner.html` עם `bm-1.js` ו־`bm-2.js` באותה תיקייה.
+המפה מצוירת מקומית מנתוני OpenStreetMap: כל הכבישים והרחובות, שטחים בנויים, ים ואגמים, גבולות, שמות יישובים ורחובות ומספרי כבישים.
+הסקריפטים שבונים אותה נמצאים ב־`tools/offline/` (נדרש קובץ PBF של Geofabrik).
