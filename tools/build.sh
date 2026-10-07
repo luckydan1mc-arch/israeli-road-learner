@@ -16,9 +16,4 @@ PY
 python3 junctions.py "$PBF" roads2.json junctions.json
 python3 regions.py "$PBF"
 python3 apply_fixes.py roads_min.json regions.json
-python3 - <<'PY'
-s = open("app_template.html").read()
-d = open("roads_min.json").read().replace("</", "<\\/"); g = open("regions.json").read().replace("</", "<\\/")
-open("../index.html", "w").write(s.replace("__ROADS__", d).replace("__REGIONS__", g))
-print("index.html written")
-PY
+python3 render_online.py roads_min.json regions.json ../index.html
