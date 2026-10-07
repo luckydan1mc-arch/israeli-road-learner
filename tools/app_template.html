@@ -748,7 +748,11 @@ function makeQ(r,pool){
    return{t,r,text:`איזה כביש עובר ליד ${place}?`,opts:o.map(x=>({label:sh(x),ok:x.n===r.n,n:x.n}))};}
  return{t:"dir",r,text:`לפי חוק הזוגיות, לאיזה כיוון רץ כביש ${r.n}?`,opts:[{label:DIRS.NS,ok:r.d==="NS"},{label:DIRS.EW,ok:r.d==="EW"}]};}
 const jdist=(a,b)=>Math.hypot((a.p[0]-b.p[0])*110,(a.p[1]-b.p[1])*94);
-function nearJ(j,k,pool,f=()=>true){const seen=new Set([j.name]);return pool.filter(o=>o.id!==j.id&&f(o)).sort((a,b)=>jdist(a,j)-jdist(b,j)).filter(o=>!seen.has(o.name)&&seen.add(o.name)).slice(0,k*2).sort(()=>Math.random()-.5).slice(0,k);}
+function nearJ(j,k,pool,f=()=>true){const picked=[],seen=new Set([j.name]);
+ for(const o of pool.filter(o=>o.id!==j.id&&f(o)).sort((a,b)=>jdist(a,j)-jdist(b,j))){
+  if(seen.has(o.name)||jdist(o,j)<0.5||picked.some(x=>jdist(x,o)<0.5))continue;   // 500 m apart: never two names for one spot
+  seen.add(o.name);picked.push(o);if(picked.length>=k*2)break;}
+ return picked.sort(()=>Math.random()-.5).slice(0,k);}
 // roads of the selected levels at a junction (what the player is expected to know)
 const reqRoads=j=>{const r=selRoads(j);return r.length?r:j.rs;};
 function makeQJ(j){

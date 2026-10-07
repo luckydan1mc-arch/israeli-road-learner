@@ -28,5 +28,36 @@
       ],
       "_why": "Road 4 km 162, HaHashmal St. bridge (Wikipedia junction list). Build placed the pin ~40 m east of road 4 and wrongly attached road 22 (~350 m away)."
     }
+  },
+  "drop_junctions": {
+    "מחלף חפר": "A bare OSM label with no road tags at the road 4 / road 9 crossing. The junction there is צומת יער חדרה (tagged junction node, Ministry of Transport bus stops of the same name).",
+    "צומת שורש": "A bare OSM label next to מחלף שורש, which is the tagged interchange.",
+    "צומת קרית אתא/מחלף מוטה גור": "The name of a footbridge, not a junction; the interchange is מחלף מוטה גור.",
+    "מחלף מוטה גור@784": {
+      "name": "מחלף מוטה גור",
+      "near": [
+        32.91181,
+        35.27791
+      ],
+      "why": "An exit from road 784 near Karmiel to a street named Motta Gur, not the interchange (which is at Kiryat Ata on roads 4/22/772)."
+    }
+  },
+  "rename_junctions": {
+    "צומת בילו": [
+      "צומת ביל\"ו",
+      "Same junction, two spellings in OSM (115 m apart)."
+    ],
+    "מחלף קרית ראשון": [
+      "מחלף קריית ראשון",
+      "Same interchange, two spellings."
+    ],
+    "מחלף נווה שאנן;מחלף רופין": [
+      "מחלף רופין",
+      "Combined name of the same interchange."
+    ],
+    "צומת שרה": [
+      "מחלף שרה",
+      "Same spot (81 m); OSM maps it as Sarah Interchange."
+    ]
   }
 }

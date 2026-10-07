@@ -27,7 +27,27 @@ def fix_regions(rg):
             for key in ("p", "r", "k"):
                 if key in f:
                     j[key] = f[key]
-    rg["junctions"] = [j for j in rg.get("junctions", []) if j["r"]]
+    # one name per place: drop stray labels, fold spelling variants into the kept name
+    drop, drop_near = set(), []      # whole name, or one place: {"name":..., "near":[lat, lon]}
+    for k, v in FIX.get("drop_junctions", {}).items():
+        if isinstance(v, dict) and "near" in v: drop_near.append((v["name"], v["near"]))
+        else: drop.add(k)
+    def dropped(j):
+        return j["n"] in drop or any(j["n"] == n and abs(j["p"][0] - p[0]) < .01 and abs(j["p"][1] - p[1]) < .01 for n, p in drop_near)
+    ren = {k: v[0] for k, v in FIX.get("rename_junctions", {}).items()}
+    js = [j for j in rg.get("junctions", []) if not dropped(j)]
+    keep = {j["n"]: j for j in js if j["n"] not in ren}
+    out = []
+    for j in js:
+        if j["n"] in ren:
+            t = keep.get(ren[j["n"]])
+            if t is not None:          # merge into the junction that already has the kept name
+                t["r"] = t["r"] + [n for n in j["r"] if n not in t["r"]]
+                continue
+            j["n"] = ren[j["n"]]
+            if j["n"].startswith("מחלף"): j["k"] = "i"
+        out.append(j)
+    rg["junctions"] = [j for j in out if j["r"]]
     return rg
 
 
