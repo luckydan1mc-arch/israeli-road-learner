@@ -1561,7 +1561,7 @@ function showPick(q){const p=q.pick;if(!p)return;const OR="#e8710a";
   labelsFor(w).forEach(pt=>selLayer.addLayer(L.marker(pt,{interactive:false,icon:L.divIcon({className:"lbl",html:`<span class="wrong">✗ ${n}</span>`,iconSize:[0,0]})})));});
  if(selMain&&q.r)selMain.bringToFront();
  if(p.r!=null&&q.r&&q.t!=="click"&&byN[p.r]){const a=q.r.bb,b=byN[p.r].bb;map.fitBounds([[Math.min(a[0],b[0]),Math.min(a[1],b[1])],[Math.max(a[2],b[2]),Math.max(a[3],b[3])]],{padding:[40,40],maxZoom:14});}}
-function finish(ok,extra){const q=Q.qs[Q.i];const pn=q.pick?`<div class="note" style="margin-top:6px"><b style="color:#e8710a">■ כתום</b> = מה שבחרת · <b style="color:${q.j?"#d93025":"#1a73e8"}">■ ${q.j?"אדום":"כחול"}</b> = התשובה הנכונה</div>`:"";
+function finish(ok,extra){const q=Q.qs[Q.i];const pn="";
  if(q.j){Q.res.push(ok);markJ(q.j.id,ok);hideAnswers(false);const j=q.j;
   if(q.t==="jclick"){q.set.forEach(x=>{if(x.id!==j.id&&!(q.pick&&q.pick.j===x.id))jLayer.addLayer(L.marker(x.p,{interactive:false,keyboard:false,icon:L.divIcon({className:"jlbl",html:`<span class="other">${x.name}</span>`,iconSize:[0,0]})}));});
    reqRoads(j).forEach(n=>selLayer.addLayer(L.polyline(byN[n].g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false})));
