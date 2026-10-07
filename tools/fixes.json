@@ -9,9 +9,24 @@
   },
   "junctions": {
     "מחלף מבוא הכרמל": {
-      "p": [32.8007, 35.0452],
-      "r": [22],
+      "p": [
+        32.8007,
+        35.0452
+      ],
+      "r": [
+        22
+      ],
       "_why": "Road 22 km 4.15, where the Yigal Yadin road and its roundabout ramps meet road 22. The OSM build averaged several exit nodes into a point west of the interchange and wrongly picked up road 4 (which passes ~400 m away)."
+    },
+    "מחלף גשר פז": {
+      "p": [
+        32.79824,
+        35.01912
+      ],
+      "r": [
+        4
+      ],
+      "_why": "Road 4 km 162, HaHashmal St. bridge (Wikipedia junction list). Build placed the pin ~40 m east of road 4 and wrongly attached road 22 (~350 m away)."
     }
   }
 }
