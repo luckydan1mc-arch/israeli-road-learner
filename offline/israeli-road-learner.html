@@ -925,6 +925,31 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
   .dchip .n{font-size:.92rem}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ---- phones: during a quiz round the map fills the screen and the question sits in a panel fixed at the bottom ---- */
+@media (max-width:900px){
+  .board .sub span{display:none}
+  .main.picking .rlbl{display:none}
+  body.inquiz header.board,body.inquiz nav.tabs,body.inquiz .filters,body.inquiz .wrap>.note,body.inquiz .mapcol>.mapbox:first-child .bar{display:none}
+  body.inquiz{padding-bottom:0}
+  body.inquiz .mapcol>.mapbox:first-child{padding:6px}
+  body.inquiz #map{height:calc(100vh - var(--sheet,300px) - 40px);height:calc(100dvh - var(--sheet,300px) - 40px);min-height:200px}
+  body.inquiz #quizBox{position:fixed;z-index:1100;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));
+    max-height:58vh;max-height:58dvh;overflow:auto;overscroll-behavior:contain;padding:12px 12px 10px;border-radius:20px;
+    background:rgba(255,255,255,.9);box-shadow:0 -6px 30px rgba(22,52,110,.18),0 0 0 1px var(--edge-soft)}
+  body.inquiz #quizBox .q{font-size:1.05rem;margin:6px 0 10px}
+  body.inquiz #quizBox .opts{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  body.inquiz #quizBox .opt{padding:9px 10px;min-height:48px;justify-content:center}
+  body.inquiz #quizBox .opt .k{display:none}
+  body.inquiz #quizBox .pbar{margin-top:6px}
+  body.inquiz #quizBox .note{font-size:.78rem}
+  body.inquiz #quizBox .feedback{margin-top:10px;padding:10px 12px}
+  body.inquiz #quizBox .clickhint{padding:9px 11px;font-size:.92rem}
+  body.inquiz #quizBox #quitQ{padding:6px 12px;font-size:.85rem}
+  body.inquiz #quizBox #typeForm{flex-wrap:nowrap}
+  body.inquiz #quizBox #typeIn{flex:1 1 auto;width:auto!important;min-width:0}
+  body.inquiz .mapcol>.mapbox+.mapbox{display:none}
+}
+@media (hover:none){.feedback .rowsb>.note{display:none}}
 </style>
 </head>
 <body>
@@ -1169,7 +1194,7 @@ $("resetFilters").onclick=()=>{digits=new Set([1,2]);selR.clear();selC.clear();r
 
 /* ---------- map (offline: drawn locally from OpenStreetMap data, no internet) ---------- */
 const ONLINE=false;
-const canvas=L.canvas({tolerance:8});
+const canvas=L.canvas({tolerance:matchMedia("(pointer:coarse)").matches?16:8});
 const map=L.map("map",{preferCanvas:true,renderer:canvas,zoomSnap:.5,attributionControl:false}).setView([31.6,35.0],8);
 let labelsOn=true,baseKey="map";
 function applyLabels(){}
@@ -1363,7 +1388,14 @@ function drawNet(){netLayer.clearLayers();if(netMode==="hidden")return;
   pl.on("click",ev=>{L.DomEvent.stop(ev);onRoadClick(r.n,ev.latlng);});
   if(netMode==="study")pl.bindTooltip("כביש "+r.n,{sticky:true,direction:"top"});
   netLayer.addLayer(pl);});}
-function onRoadClick(n,ll){if(netMode==="quizclick")quizClicked(n,ll);else{selectRoad(n,{fit:false});setGoogle(ll.lat,ll.lng,15);}}
+const TAP_PX=matchMedia("(pointer:coarse)").matches?24:12;
+function segDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;let t=l?((p.x-a.x)*dx+(p.y-a.y)*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);}
+function nearestRoad(ll,set,maxPx){const p=map.latLngToContainerPoint(ll),pad=maxPx/Math.pow(2,map.getZoom())*0.0055;let best=null,bd=Infinity;
+ for(const r of set){if(ll.lat<r.bb[0]-pad*3||ll.lat>r.bb[2]+pad*3||ll.lng<r.bb[1]-pad*3||ll.lng>r.bb[3]+pad*3)continue;
+  for(const line of r.g){let prev=null;for(const q of line){const c=map.latLngToContainerPoint(q);if(prev){const d=segDist(p,prev,c);if(d<bd){bd=d;best=r.n;}}prev=c;}}}
+ return bd<=maxPx?best:null;}
+map.on("click",ev=>{if(netMode!=="quizclick")return;const n=nearestRoad(ev.latlng,quizClickSet,TAP_PX);if(n!=null)quizClicked(n,ev.latlng);});
+function onRoadClick(n,ll){if(netMode==="quizclick")quizClicked(nearestRoad(ll,quizClickSet,TAP_PX*1.5)??n,ll);else{selectRoad(n,{fit:false});setGoogle(ll.lat,ll.lng,15);}}
 function labelsFor(r){const out=[];const total=r.g.reduce((s,l)=>s+l.length,0);let longest=r.g.slice().sort((a,b)=>b.length-a.length);
  const k=Math.min(4,Math.max(1,Math.round(r.span/25)));const L0=longest[0];for(let i=1;i<=k;i++){out.push(L0[Math.floor(L0.length*i/(k+1))]);}return out;}
 let selMain=null;
@@ -1481,7 +1513,7 @@ function startQuiz(){if(subject==="both"){const pr=filtered(),pj=filteredJ();if(
  const pl=filtered();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 כבישים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
  runRound(shuffle(pl.slice()));}
 function runRound(items){const qs=items.map(x=>x.rs?makeQJ(x):makeQ(x));
- Q={qs,i:0,res:[]};drawRegions();$("quizSetup").hidden=true;$("quizBox").hidden=false;showQ();}
+ Q={qs,i:0,res:[]};drawRegions();$("quizSetup").hidden=true;$("quizBox").hidden=false;document.body.classList.add("inquiz");window.scrollTo(0,0);sheetFit();showQ();}
 const bar=()=>{const N=Q.qs.length,ok=Q.res.filter(Boolean).length,no=Q.res.length-ok;
  return `<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${Q.res.length}"><i class="ok" style="width:${100*ok/N}%"></i><i class="no" style="width:${100*no/N}%"></i></div>
  <div class="note" style="margin-top:4px">✓ ${ok} נכונות · ✗ ${no} טעויות · נשארו ${N-Q.res.length}</div>`;};
@@ -1546,7 +1578,7 @@ function finish(ok,extra){const q=Q.qs[Q.i];const pn=q.pick?`<div class="note" s
  ${pn}<div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
  $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});}
 function next(){Q.i++;if(Q.i<Q.qs.length)showQ();else summary();}
-function summary(){const ans=Q.res.length;const c=Q.res.filter(Boolean).length;jLayer.clearLayers();netMode="study";drawNet();
+function summary(){leaveSheet();const ans=Q.res.length;const c=Q.res.filter(Boolean).length;jLayer.clearLayers();netMode="study";drawNet();
  // missed items (roads and/or junctions), each once, in the order they were asked
  const seen=new Set(),miss=[];Q.qs.forEach((q,i)=>{if(i<Q.res.length&&!Q.res[i]){const it=q.j||q.r,key=(q.j?"j":"r")+(q.j?q.j.id:q.r.n);if(!seen.has(key)){seen.add(key);miss.push(it);}}});
  const itemBtn=it=>it.rs?`<button class="roaditem" type="button" data-studyj="${it.id}"><span class="nm">${it.name}</span>${jsh(it)}</button>`:`<button class="roaditem" type="button" data-study="${it.n}">${sh(it)}<span class="nm">${it.title}</span></button>`;
@@ -1555,12 +1587,18 @@ function summary(){const ans=Q.res.length;const c=Q.res.filter(Boolean).length;j
  $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(miss.slice()));
  document.querySelectorAll("[data-study]").forEach(b=>b.onclick=()=>{setMode("study");selectRoad(+b.dataset.study);});
  document.querySelectorAll("[data-studyj]").forEach(b=>b.onclick=()=>{setMode("study");selectJunction(+b.dataset.studyj);});}
-function endQuiz(){Q=null;drawRegions();hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
+function endQuiz(){leaveSheet();Q=null;drawRegions();hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
 $("quizBox").addEventListener("click",e=>{const b=e.target.closest(".opt");if(b&&!b.disabled)answer(+b.dataset.i);});
 document.addEventListener("keydown",e=>{if(mode!=="quiz"||!Q||e.target.tagName==="INPUT")return;
  if(/^[1-4]$/.test(e.key)){const q=Q.qs[Q.i];const i=+e.key-1;if(q&&q.opts&&i<q.opts.length&&Q.res.length===Q.i)answer(i);}
  else if(e.key==="Enter"&&Q.res.length>Q.i&&document.activeElement.id!=="nextQ"){e.preventDefault();next();}});
 $("startQuiz").onclick=startQuiz;
+// on a phone the question panel is fixed at the bottom and the map takes the rest of the screen
+function sheetFit(){if(!document.body.classList.contains("inquiz"))return;const h=$("quizBox").offsetHeight;
+ if(Math.abs((+document.body.dataset.sheet||0)-h)<2)return;document.body.dataset.sheet=h;document.body.style.setProperty("--sheet",h+"px");map.invalidateSize();}
+function leaveSheet(){if(!document.body.classList.contains("inquiz"))return;document.body.classList.remove("inquiz");
+ document.body.style.removeProperty("--sheet");delete document.body.dataset.sheet;setTimeout(()=>map.invalidateSize(),50);}
+if(window.ResizeObserver)new ResizeObserver(sheetFit).observe($("quizBox"));
 
 /* ---------- tabs ---------- */
 function setMode(m){mode=m;["study","quiz","rules"].forEach(k=>{$("tab-"+k).setAttribute("aria-selected",k===m);$("view-"+k).hidden=k!==m;});

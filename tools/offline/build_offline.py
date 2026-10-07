@@ -20,7 +20,7 @@ block("NOTE", '<p class="note">מקור התוואי והמפה: OpenStreetMap (
 block("ONLINE-SCRIPTS", '<script>__LEAFLET_JS__</script>\n<script src="bm-1.js"></script>\n<script src="bm-2.js"></script>')
 block("ONLINE-MAP", '''/* ---------- map (offline: drawn locally from OpenStreetMap data, no internet) ---------- */
 const ONLINE=false;
-const canvas=L.canvas({tolerance:8});
+const canvas=L.canvas({tolerance:matchMedia("(pointer:coarse)").matches?16:8});
 const map=L.map("map",{preferCanvas:true,renderer:canvas,zoomSnap:.5,attributionControl:false}).setView([31.6,35.0],8);
 let labelsOn=true,baseKey="map";
 function applyLabels(){}
