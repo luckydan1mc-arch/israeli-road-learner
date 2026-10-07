@@ -1,0 +1,17 @@
+{
+  "_comment": "Manual corrections on top of the OpenStreetMap extract. Applied by apply_fixes.py on every build.",
+  "drop_roads": {
+    "100": "No road 100 in Israel - an OSM tagging error on a 1 km local street in Shefa-Amr",
+    "109": "No road 109 - 1 km stub at Eilot, tagging error",
+    "152": "No road 152 - 0.3 km stub at Maoz Haim, tagging error",
+    "300": "No road 300 - 0.4 km stub at Beit Hashmonai, tagging error",
+    "36": "No road 36 - residential street in Salfit, tagging error"
+  },
+  "junctions": {
+    "מחלף מבוא הכרמל": {
+      "p": [32.8007, 35.0452],
+      "r": [22],
+      "_why": "Road 22 km 4.15, where the Yigal Yadin road and its roundabout ramps meet road 22. The OSM build averaged several exit nodes into a point west of the interchange and wrongly picked up road 4 (which passes ~400 m away)."
+    }
+  }
+}
