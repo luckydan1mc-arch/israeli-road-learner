@@ -280,8 +280,12 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
 @media (max-width:900px){
   .board .sub span{display:none}
   .main.picking .rlbl{display:none}
-  body.inquiz header.board,body.inquiz nav.tabs,body.inquiz .filters,body.inquiz .wrap>.note,body.inquiz .mapcol>.mapbox:first-child .bar{display:none}
+  body.inquiz header.board,body.inquiz nav.tabs,body.inquiz .filters,body.inquiz .wrap>.note,body.inquiz #mapCap{display:none}
   body.inquiz{padding-bottom:0}
+  /* map / satellite switch stays on the map during the quiz, top corner opposite the zoom buttons */
+  body.inquiz .mapcol>.mapbox:first-child{position:relative}
+  body.inquiz .mapcol>.mapbox:first-child .bar{position:absolute;z-index:1000;top:14px;right:14px;margin:0;padding:0;background:none;border:0;box-shadow:none}
+  body.inquiz #baseSeg{border-radius:999px;overflow:hidden;background:rgba(255,255,255,.92);box-shadow:0 2px 10px rgba(22,52,110,.18)}
   body.inquiz .mapcol>.mapbox:first-child{padding:6px}
   body.inquiz #map{height:calc(100vh - var(--sheet,300px) - 40px);height:calc(100dvh - var(--sheet,300px) - 40px);min-height:200px}
   body.inquiz #quizBox{position:fixed;z-index:1100;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));
@@ -530,7 +534,7 @@ function renderRegions(){const items=[...(wantR()?ROADS:[]),...(wantJ()?JUNC:[])
 function regionsChanged(fit){[...selC].forEach(c=>{if(!selR.has(RG.councils[c].region))selC.delete(c);});saveRegions();renderRegions();onFilter();drawRegions();
  if(subject==="junctions"){if(mode==="study")studyShow();}else{const f=filtered();if(mode==="study"&&f.length&&!f.some(r=>r.n===cur)){cur=f[0].n;$("detail").innerHTML=detailHTML(byN[cur]);showRoad(cur,{fit:false});renderList();}}
  if(fit)fitRegions();}
-function setPicking(open){$("regionPanel").hidden=!open;renderRegSel();document.querySelector(".main").classList.toggle("picking",open);$("regionBtn").setAttribute("aria-expanded",open);drawRegions();
+function setPicking(open){$("regionPanel").hidden=!open;renderRegSel();if(canvas._container)canvas._container.style.pointerEvents=open?"none":"";document.querySelector(".main").classList.toggle("picking",open);$("regionBtn").setAttribute("aria-expanded",open);drawRegions();
  if(open){renderRegions();if(!selR.size)map.setView([31.45,35.0],7.5);else fitRegions();
   const m=document.querySelector(".main");if(m.getBoundingClientRect().top<0||m.getBoundingClientRect().top>innerHeight*.5)m.scrollIntoView({behavior:"smooth",block:"start"});}
  else if(mode==="study"&&typeof studyShow==="function")studyShow();setTimeout(()=>map.invalidateSize(),60);}
