@@ -2,7 +2,7 @@
 Usage: build_offline.py roads_min.json regions.json leaflet_dist_dir basemap_dir out_dir
 Writes out_dir/offline/ (ready to run: html + bm-1.js + bm-2.js) and out_dir/transport/ (same app with short lines,
 for carrying the files inside Word documents)."""
-import base64, json, os, re, shutil, sys
+import base64, json, os, re, shutil, subprocess, sys
 here = os.path.dirname(os.path.abspath(__file__)); tools = os.path.dirname(here)
 roads_p, regions_p, ldist, bmdir, outdir = sys.argv[1:6]
 t = open(os.path.join(tools, "app_template.html"), encoding="utf-8").read()
@@ -57,3 +57,11 @@ for kind, ljs, rd, rg in (("offline", "leaflet.js", roads, regions),
     open(os.path.join(d, "israeli-road-learner.html"), "w", encoding="utf-8").write(html)
     for k in (1, 2): shutil.copy(os.path.join(bmdir, f"bm-{k}.js"), os.path.join(d, f"bm-{k}.js"))
     L = html.split("\n"); print(kind, f"{len(html):,} chars, {len(L):,} lines, longest {max(map(len, L)):,}")
+
+# The three Word files for the CDR gateway always go to <repo>/הלבנה, so that folder holds the latest version
+here = os.path.dirname(os.path.abspath(__file__))
+wdir = os.path.join(here, "..", "..", "הלבנה"); os.makedirs(wdir, exist_ok=True)
+td = os.path.join(outdir, "transport")
+for src, name in (("israeli-road-learner.html", "1 - israeli-road-learner (html).docx"),
+                  ("bm-1.js", "2 - bm-1 (js).docx"), ("bm-2.js", "3 - bm-2 (js).docx")):
+    subprocess.run([sys.executable, os.path.join(here, "mkword.py"), os.path.join(td, src), os.path.join(wdir, name)], check=True)
