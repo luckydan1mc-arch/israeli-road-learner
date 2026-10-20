@@ -338,6 +338,9 @@ body.mapfull #regionPanel:not([hidden]){position:fixed;z-index:1600;left:12px;bo
 body.inquiz #fullBtn,body.inquiz #fullFilt,body.inquiz #clearSel{display:none!important}
 .main.picking .dlbl{display:none}
 body.noreglbl .main:not(.picking) .rlbl{display:none}
+.oshl{background:none;border:none}
+.oshl span{position:absolute;left:0;top:0;transform:translate(-50%,-50%);color:#fff;font:700 11.5px/1 "Segoe UI",Arial,sans-serif;padding:3px 5px;border-radius:4px;
+  border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);white-space:nowrap;pointer-events:none}
 </style>
 </head>
 <body>
@@ -408,6 +411,7 @@ body.noreglbl .main:not(.picking) .rlbl{display:none}
         <div class="lpanel" id="layersPanel" hidden>
           <div class="lhead"><b>מה להציג על המפה</b><button class="btn ghost small" type="button" id="layersClose" aria-label="סגירה">✕</button></div>
           <div class="lph">כבישים</div>
+          <div class="seg" id="layRd" style="margin-bottom:6px"><button type="button" data-v="0">בלי</button><button type="button" data-v="1">הכבישים שבסינון</button></div>
           <div class="lrow" id="layRoads"></div>
           <div class="lph">צמתים ומחלפים <span class="lkey"><i style="background:#1558c7"></i>מחלף <i style="background:#00838f"></i>צומת</span></div>
           <div class="seg" id="layJ"><button type="button" data-v="none">בלי</button><button type="button" data-v="i">מחלפים</button><button type="button" data-v="all">הכול</button></div>
@@ -548,7 +552,7 @@ const KIND={i:"מחלף",j:"צומת"};
 // settlements: [name, 0 city/town | 1 village, lat, lon, regions, councils, numbered roads passing nearby]
 const SETT=JSON.parse(document.getElementById("sett").textContent).map((s,i)=>({id:i,sk:1,name:s[0],big:s[1]===0,p:[s[2],s[3]],R:s[4],C:s[5],near:s[6].filter(n=>byN[n])}));
 const byS=Object.fromEntries(SETT.map(s=>[s.id,s]));
-let placesOn=true;   // settlement names on the base map (hidden while a settlement question is open)
+let placesOn=true,baseShields=true;   // settlement names on the base map (hidden while a settlement question is open)
 
 /* ---------- progress ---------- */
 let P={roads:{},ans:0,ok:0,streak:0};
@@ -606,7 +610,7 @@ $("regDone").onclick=()=>setPicking(false);
 $("regAll").onclick=()=>{selR.clear();selC.clear();regionsChanged(true);};
 $("regChips").addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;const i=+b.dataset.r;selR.has(i)?selR.delete(i):selR.add(i);regionsChanged(true);});
 $("councilChips").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;const i=+b.dataset.c;selC.has(i)?selC.delete(i):selC.add(i);regionsChanged(true);});
-function onFilter(){if(typeof drawOverlay==="function")setTimeout(drawOverlay,0);if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();renderRegSel();renderFilterSummary();renderList();drawNet();stats();$("quizPoolNote").textContent=subject==="junctions"?`הסבב יכלול ${filteredJ().length} שאלות, שאלה אחת על כל צומת ומחלף בסינון, בסדר אקראי.`:subject==="both"?`הסבב יכלול ${filtered().length+filteredJ().length} שאלות: ${filtered().length} כבישים ו־${filteredJ().length} צמתים ומחלפים, מעורבבים בסדר אקראי.`:`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;
+function onFilter(){if(typeof drawOverlay==="function")setTimeout(()=>{drawOverlay();renderLayers();},0);if(typeof renderRegions==="function"&&!$("regionPanel").hidden)renderRegions();renderRegSel();renderFilterSummary();renderList();drawNet();stats();$("quizPoolNote").textContent=subject==="junctions"?`הסבב יכלול ${filteredJ().length} שאלות, שאלה אחת על כל צומת ומחלף בסינון, בסדר אקראי.`:subject==="both"?`הסבב יכלול ${filtered().length+filteredJ().length} שאלות: ${filtered().length} כבישים ו־${filteredJ().length} צמתים ומחלפים, מעורבבים בסדר אקראי.`:`הסבב יכלול ${filtered().length} שאלות, שאלה אחת על כל כביש בסינון, בסדר אקראי.`;
  const ml=$("sMasterLbl");if(ml)ml.textContent=subject==="junctions"?"צמתים בשליטה":subject==="both"?"כבישים וצמתים בשליטה":"כבישים בשליטה";renderQmode();}
 
 /* ---------- filter: chosen regions as removable tags, live summary, reset ---------- */
@@ -645,13 +649,14 @@ function makeVec(){try{if(!L.maplibreGL||!window.maplibregl)return null;
 vec=makeVec();
 const BASES={
  map:vec||L.tileLayer(ESRI+"World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
- sat:L.layerGroup([L.tileLayer(ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Imagery © Esri, Maxar"})])};
-const SAT_LABELS=L.tileLayer(ESRI+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,pane:"overlayPane"});
+ sat:L.layerGroup([L.tileLayer(ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,maxNativeZoom:17,attribution:"Imagery © Esri, Maxar"})])};
+const SAT_LABELS=L.tileLayer(ESRI+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,maxNativeZoom:17,pane:"overlayPane"});
 let baseKey="map";
 function applyLabels(){
  if(vec&&vec.getMaplibreMap){const m=vec.getMaplibreMap();if(m&&m.getStyle&&m.getStyle()){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const sl=l["source-layer"]||"";
    const roadish=sl.startsWith("transportation")||sl==="poi"||sl==="aerodrome_label";  // road numbers, road names, POIs
-   m.setLayoutProperty(l.id,"visibility",((labelsOn||!roadish)&&(placesOn||sl!=="place"))?"visible":"none");});}}
+   const isRef=JSON.stringify(m.getLayoutProperty(l.id,"text-field")||"").includes("ref");
+   m.setLayoutProperty(l.id,"visibility",((labelsOn||!roadish)&&(placesOn||sl!=="place")&&(baseShields||!(roadish&&isRef)))?"visible":"none");});}}
  if(baseKey==="sat"&&placesOn)SAT_LABELS.addTo(map);else map.removeLayer(SAT_LABELS);}
 function setLabels(on){labelsOn=on;applyLabels();}
 function setBase(k){Object.values(BASES).forEach(b=>map.removeLayer(b));BASES[k].addTo(map);baseKey=k;
@@ -829,7 +834,8 @@ function makeQS(s){
  return{t:"sroad",s,n,text:`ליד איזה יישוב עובר כביש ${n}?`,opts:o.map(x=>({label:x.name,ok:x.id===s.id,sid:x.id}))};}
 /* ---------- map layers ---------- */
 const LW={1:3.6,2:3,3:2.3,4:1.7};
-let lay={d:[],j:"none",s:"none",r:"names"};try{Object.assign(lay,JSON.parse(localStorage.getItem("irl-layers")||"{}"));}catch(e){}
+let lay={rd:true,j:"none",s:"none",r:"names"};try{Object.assign(lay,JSON.parse(localStorage.getItem("irl-layers")||"{}"));}catch(e){}
+delete lay.d;   // road levels on the map now follow the "which roads" filter
 const ovl=L.layerGroup().addTo(map);
 // the chosen area (regions, or the chosen councils inside a region) as shapes of even-odd rings; roads are cut to it
 let areaKey=null,areaShapes=null,clipCache={};
@@ -849,13 +855,14 @@ function clipRoad(r){if(!areaNow())return r.g;if(clipCache[r.n])return clipCache
    if(ins)cur.push(p);prev=p;pin=ins;}
   if(cur&&cur.length>1)out.push(cur);}
  return clipCache[r.n]=out;}
-function drawOverlay(){ovl.clearLayers();if(Q)return;   // nothing extra on the map during a quiz round
+function setBaseShields(v){if(baseShields!==v){baseShields=v;setLabels(labelsOn);}}
+function drawOverlay(){ovl.clearLayers();if(Q){ovlRoads=[];shLayer.clearLayers();setBaseShields(true);return;}   // nothing extra on the map during a quiz round
  // region (district) names, optionally with their borders; only the chosen regions when the filter has some
  if(lay.r!=="none")RG.regions.forEach((g,i)=>{if(selR.size&&!selR.has(i))return;
   if(lay.r==="lines")ovl.addLayer(L.polygon(g.o,{renderer:canvas,color:"#41557a",weight:1.3,opacity:.7,dashArray:"5 5",fill:false,interactive:false}));
   if(!selR.size)ovl.addLayer(L.marker(regionAnchor(i),{interactive:false,keyboard:false,icon:L.divIcon({className:"dlbl",html:`<span>${g.name.split(/[:,]/)[0].trim()}</span>`,iconSize:[0,0]})}));});
  // roads: on satellite a white casing under every road first (keeps the colours readable), then the colours
- const rs=[];[4,3,2,1].filter(d=>lay.d.includes(d)).forEach(d=>ROADS.filter(r=>r.dig===d&&inArea(r)).forEach(r=>{const g=clipRoad(r);if(g.length)rs.push([r,g,d]);}));
+ const rs=[];[4,3,2,1].filter(d=>lay.rd&&digits.has(d)).forEach(d=>ROADS.filter(r=>r.dig===d&&inArea(r)).forEach(r=>{const g=clipRoad(r);if(g.length)rs.push([r,g,d]);}));
  if(typeof baseKey!=="undefined"&&baseKey==="sat")rs.forEach(([r,g,d])=>ovl.addLayer(L.polyline(g,{renderer:canvas,color:"#ffffff",weight:LW[d]+3,opacity:.85,interactive:false})));
  rs.forEach(([r,g,d])=>{const pl=L.polyline(g,{renderer:canvas,color:LCOL[d],weight:LW[d],opacity:.95});pl.bindTooltip("כביש "+r.n,{sticky:true,direction:"top"});
   pl.on("click",ev=>{L.DomEvent.stop(ev);if(mode==="study")selectRoad(r.n,{fit:false});});ovl.addLayer(pl);});
@@ -865,7 +872,23 @@ function drawOverlay(){ovl.clearLayers();if(Q)return;   // nothing extra on the 
  if(lay.s!=="none")SETT.filter(s=>(lay.s==="all"||s.big)&&inArea(s)&&(!areaNow()||inShapes(s.p))).forEach(s=>{
   const mk=L.circleMarker(s.p,{renderer:canvas,radius:s.big?5.5:3.5,color:"#ffffff",weight:1.2,fillColor:"#37474f",fillOpacity:1});
   mk.bindTooltip(s.name,{direction:"top"});mk.on("click",ev=>L.DomEvent.stop(ev));ovl.addLayer(mk);});
+ ovlRoads=rs;setBaseShields(!rs.length);drawShields();   // the layer roads carry their own numbers, so the base map's shields step aside
  if(selMain)selMain.bringToFront();}
+// road numbers on the layer roads from zoom 10 (both base maps), placed along each road inside the view
+const shLayer=L.layerGroup().addTo(map);let ovlRoads=[];
+function drawShields(){shLayer.clearLayers();if(Q||map.getZoom()<10||!ovlRoads.length)return;
+ const vb=map.getBounds().pad(.05),SP=(typeof baseKey!=="undefined"&&baseKey==="sat")?240:340,placed=[];
+ for(const [r,g,d] of ovlRoads){if(placed.length>160)break;const bb=r.bb;if(bb[2]<vb.getSouth()||bb[0]>vb.getNorth()||bb[3]<vb.getWest()||bb[1]>vb.getEast())continue;
+  for(const line of g){let acc=SP*.5,prev=null;
+   for(const q of line){const pt=map.latLngToContainerPoint(q);
+    if(prev){const seg=pt.distanceTo(prev);
+     while(acc<=seg){const t=acc/seg,x=prev.x+(pt.x-prev.x)*t,y=prev.y+(pt.y-prev.y)*t,ll=map.containerPointToLatLng([x,y]);
+      if(vb.contains(ll)&&!placed.some(p=>Math.abs(p[0]-x)<46&&Math.abs(p[1]-y)<24)){placed.push([x,y]);
+       shLayer.addLayer(L.marker(ll,{interactive:false,keyboard:false,icon:L.divIcon({className:"oshl",html:`<span style="background:${LCOL[d]}">${r.n}</span>`,iconSize:[0,0]})}));}
+      acc+=SP;}
+     acc-=seg;}
+    prev=pt;}}}}
+map.on("moveend",drawShields);
 const anchors={};
 function regionAnchor(i){if(anchors[i])return anchors[i];const rings=RG.regions[i].o;let a=90,b=180,c=-90,d=-180;
  rings.forEach(r=>r.forEach(p=>{if(p[0]<a)a=p[0];if(p[0]>c)c=p[0];if(p[1]<b)b=p[1];if(p[1]>d)d=p[1];}));
@@ -877,15 +900,17 @@ function regionAnchor(i){if(anchors[i])return anchors[i];const rings=RG.regions[
   if(m>bd){bd=m;best=p;}}
  return anchors[i]=best;}
 function saveLayers(){try{localStorage.setItem("irl-layers",JSON.stringify(lay));}catch(e){}}
-function renderLayers(){$("layRoads").innerHTML=[1,2,3,4].map(d=>`<button type="button" class="lchip" data-ld="${d}" aria-pressed="${lay.d.includes(d)}"><i style="background:${LCOL[d]}"></i>${DLABEL[d]}</button>`).join("");
+function renderLayers(){$("layRoads").innerHTML=[1,2,3,4].map(d=>`<button type="button" class="lchip" data-ld="${d}" aria-pressed="${digits.has(d)}"><i style="background:${LCOL[d]}"></i>${DLABEL[d]}</button>`).join("");
  document.querySelectorAll("#layJ button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===lay.j));
  document.querySelectorAll("#layS button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===lay.s));
  document.body.classList.toggle("noreglbl",lay.r==="none");   // "בלי" also hides the blue labels of the chosen regions
  document.querySelectorAll("#layR button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===lay.r));
- const n=lay.d.length+(lay.j!=="none")+(lay.s!=="none")+(lay.r!=="none");$("layersBtn").textContent=n?`שכבות במפה (${n})`:"שכבות במפה";}
+ document.querySelectorAll("#layRd button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.v==="1")===!!lay.rd));$("layRoads").style.opacity=lay.rd?"":".55";
+ const n=(lay.rd?1:0)+(lay.j!=="none")+(lay.s!=="none")+(lay.r!=="none");$("layersBtn").textContent=n?`שכבות במפה (${n})`:"שכבות במפה";}
 function layersOpen(o){$("layersPanel").hidden=!o;$("layersBtn").setAttribute("aria-expanded",o);}
 $("layersBtn").onclick=()=>layersOpen($("layersPanel").hidden);$("layersClose").onclick=()=>layersOpen(false);
-$("layRoads").addEventListener("click",e=>{const b=e.target.closest("[data-ld]");if(!b)return;const d=+b.dataset.ld;lay.d=lay.d.includes(d)?lay.d.filter(x=>x!==d):[...lay.d,d];saveLayers();renderLayers();drawOverlay();});
+$("layRoads").addEventListener("click",e=>{const b=e.target.closest("[data-ld]");if(!b)return;const d=+b.dataset.ld;if(digits.has(d)){if(digits.size>1)digits.delete(d);}else digits.add(d);renderChips();onFilter();renderLayers();});   // same as the filter chips
+$("layRd").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.rd=b.dataset.v==="1";saveLayers();renderLayers();drawOverlay();});
 $("layJ").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.j=b.dataset.v;saveLayers();renderLayers();drawOverlay();});
 $("layR").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.r=b.dataset.v;saveLayers();renderLayers();drawOverlay();});
 $("layS").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.s=b.dataset.v;saveLayers();renderLayers();drawOverlay();});

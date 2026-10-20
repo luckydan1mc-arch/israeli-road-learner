@@ -100,7 +100,7 @@ function drawBasemap(ctx,bounds,m){
  const big=places.filter(p=>p.k<=1),rest=places.filter(p=>p.k>1);
  if(typeof placesOn==="undefined"||placesOn)for(const p of big)label(p.n,p.x*S-ox,p.y*S-oy,PK[p.k].f,PK[p.k].c);
  if(z>=9)for(const w of BM.wl)if(w.a>2e7||z>=10.5)label(w.n,w.x*S-ox,w.y*S-oy,'italic 600 13px "Segoe UI",Arial,sans-serif',"#2f6690","rgba(240,248,255,.9)");
- if(labelsOn&&z>=7.5){let count=0;const spacing=z<10?260:300;
+ if(labelsOn&&(typeof baseShields==="undefined"||baseShields)&&z>=7.5){let count=0;const spacing=z<10?260:300;
   ctx.font='700 11px "Segoe UI",Arial,sans-serif';
   for(const R of roadWorld()){const r=R.r;if(z<shieldMinZ(r)||!vis(R.b))continue;const sty=shieldStyle(r),t=String(r.n),tw=ctx.measureText(t).width+8,th=15;
    for(const a of R.ls){let acc=spacing*.45,lx=a[0]*S-ox,ly=a[1]*S-oy;
