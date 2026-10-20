@@ -17,4 +17,5 @@ python3 junctions.py "$PBF" roads2.json junctions.json
 python3 regions.py "$PBF"
 python3 apply_fixes.py roads_min.json regions.json
 python3 meet_check.py roads_min.json regions.json --write
+python3 settlements.py "$PBF" roads_min.json regions.json settlements.json
 python3 render_online.py roads_min.json regions.json ../index.html

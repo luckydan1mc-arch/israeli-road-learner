@@ -31,6 +31,7 @@ block("GOOGLE-JS", "function setGoogle(){}\nfunction hideGoogle(){}", js=True)
 
 emb = "data:image/png;base64," + base64.b64encode(open(os.path.join(tools, "emblem.png"), "rb").read()).decode()
 lcss = open(os.path.join(ldist, "leaflet.css"), encoding="utf-8").read()
+sett = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "settlements.json"), encoding="utf-8"))
 roads = open(roads_p, encoding="utf-8").read().strip(); regions = open(regions_p, encoding="utf-8").read().strip()
 
 def compact(o): return json.dumps(o, ensure_ascii=False, separators=(",", ":"))
@@ -46,7 +47,7 @@ for kind, ljs, rd, rg in (("offline", "leaflet.js", roads, regions),
     d = os.path.join(outdir, kind); os.makedirs(d, exist_ok=True)
     js = open(os.path.join(ldist, ljs), encoding="utf-8").read()
     for x in (js, lcss): assert "</script>" not in x and "</style>" not in x
-    html = t.replace("__LEAFLET_CSS__", lcss).replace("__LEAFLET_JS__", js).replace("__ROADS__", rd).replace("__REGIONS__", rg)
+    html = t.replace("__LEAFLET_CSS__", lcss).replace("__LEAFLET_JS__", js).replace("__ROADS__", rd).replace("__REGIONS__", rg).replace("__SETT__", ser(sett) if kind == "transport" else compact(sett))
     if kind == "transport":   # Word chokes on one very long line: the emblem is set from short string chunks instead
         html = html.replace('src="__EMBLEM__"', 'id="emblemImg" alt=""').replace('<link rel="icon" href="__EMBLEM__">', "")
         chunks = [emb[i:i + 1500] for i in range(0, len(emb), 1500)]

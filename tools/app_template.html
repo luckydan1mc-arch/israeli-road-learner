@@ -421,6 +421,14 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
               <button type="button" data-m="type" aria-pressed="false">הקלדת מספר הכביש</button>
             </div></div>
           <p class="note" id="qmodeNote" style="margin-top:8px"></p>
+          <div class="row" style="margin-top:10px"><span class="flabel">יישובים</span>
+            <div class="seg" id="settSeg">
+              <button type="button" data-s="none" aria-pressed="true">בלי</button>
+              <button type="button" data-s="cities" aria-pressed="false">ערים</button>
+              <button type="button" data-s="all" aria-pressed="false">כל היישובים</button>
+            </div></div>
+          <label class="row note" id="settOnlyRow" style="margin-top:8px;gap:8px;cursor:pointer" hidden><input type="checkbox" id="settOnly"> רק יישובים, בלי כבישים וצמתים</label>
+          <p class="note" id="settNote" style="margin-top:6px"></p>
           <div class="row" style="margin-top:8px"><button class="btn" id="startQuiz" type="button">התחל סבב</button></div>
         </div>
         <div class="card" id="quizBox" hidden></div>
@@ -446,6 +454,7 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
 
 <script id="roads" type="application/json">__ROADS__</script>
 <script id="regions" type="application/json">__REGIONS__</script>
+<script id="sett" type="application/json">__SETT__</script>
 <!--ONLINE-SCRIPTS-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -488,6 +497,10 @@ const byN=Object.fromEntries(ROADS.map(r=>[r.n,r]));
 const JUNC=(RG.junctions||[]).map((j,i)=>({id:i,name:j.n,kind:j.k,p:j.p,rs:j.r.filter(n=>byN[n]),R:j.R,C:j.C,c:j.p})).filter(j=>j.rs.length);
 const byJ=Object.fromEntries(JUNC.map(j=>[j.id,j]));
 const KIND={i:"מחלף",j:"צומת"};
+// settlements: [name, 0 city/town | 1 village, lat, lon, regions, councils, numbered roads passing nearby]
+const SETT=JSON.parse(document.getElementById("sett").textContent).map((s,i)=>({id:i,sk:1,name:s[0],big:s[1]===0,p:[s[2],s[3]],R:s[4],C:s[5],near:s[6].filter(n=>byN[n])}));
+const byS=Object.fromEntries(SETT.map(s=>[s.id,s]));
+let placesOn=true;   // settlement names on the base map (hidden while a settlement question is open)
 
 /* ---------- progress ---------- */
 let P={roads:{},ans:0,ok:0,streak:0};
@@ -588,8 +601,8 @@ let baseKey="map";
 function applyLabels(){
  if(vec&&vec.getMaplibreMap){const m=vec.getMaplibreMap();if(m&&m.getStyle&&m.getStyle()){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const sl=l["source-layer"]||"";
    const roadish=sl.startsWith("transportation")||sl==="poi"||sl==="aerodrome_label";  // road numbers, road names, POIs
-   m.setLayoutProperty(l.id,"visibility",(labelsOn||!roadish)?"visible":"none");});}}
- if(baseKey==="sat")SAT_LABELS.addTo(map);else map.removeLayer(SAT_LABELS);}
+   m.setLayoutProperty(l.id,"visibility",((labelsOn||!roadish)&&(placesOn||sl!=="place"))?"visible":"none");});}}
+ if(baseKey==="sat"&&placesOn)SAT_LABELS.addTo(map);else map.removeLayer(SAT_LABELS);}
 function setLabels(on){labelsOn=on;applyLabels();}
 function setBase(k){Object.values(BASES).forEach(b=>map.removeLayer(b));BASES[k].addTo(map);baseKey=k;
  document.querySelectorAll("#baseSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.b===k));applyLabels();drawNet();}
@@ -734,9 +747,36 @@ let qmode="choice";
 try{qmode=localStorage.getItem("irl-qmode")||"choice";}catch(e){}
 const QMODE_NOTE={choice:"כביש מסומן בכחול ובוחרים את המספר מתוך 4 אפשרויות, או לוחצים על הכביש הנכון במפה.",type:"כביש מסומן בכחול על המפה, ובלי שום אפשרויות מקלידים את מספר הכביש."};
 const QMODE_NOTE_J={choice:"צומת או מחלף מסומן באדום ובוחרים את השם מתוך 4 אפשרויות, לוחצים על הצומת הנכון במפה, או מזהים באיזה צומת נפגשים שני כבישים.",type:"מופיע שם של צומת או מחלף, ומקלידים את מספרי הכבישים שנפגשים בו."};
-function renderQmode(){document.querySelectorAll("#qmodeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===qmode));$("qmodeNote").textContent=subject==="both"?QMODE_NOTE[qmode]+" "+QMODE_NOTE_J[qmode]:(subject==="junctions"?QMODE_NOTE_J:QMODE_NOTE)[qmode];
+function renderQmode(){if(typeof renderSett==="function")setTimeout(renderSett,0);document.querySelectorAll("#qmodeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===qmode));$("qmodeNote").textContent=subject==="both"?QMODE_NOTE[qmode]+" "+QMODE_NOTE_J[qmode]:(subject==="junctions"?QMODE_NOTE_J:QMODE_NOTE)[qmode];
  const tb=document.querySelector('#qmodeSeg [data-m="type"]');if(tb)tb.textContent=subject==="roads"?"הקלדת מספר הכביש":"הקלדת מספרי כבישים";}
 $("qmodeSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;qmode=b.dataset.m;try{localStorage.setItem("irl-qmode",qmode);}catch(e){}renderQmode();});
+let settLvl="none",settOnly=false;
+try{settLvl=localStorage.getItem("irl-sett")||"none";settOnly=localStorage.getItem("irl-sett-only")==="1";}catch(e){}
+function filteredS(){return settLvl==="none"?[]:SETT.filter(s=>(settLvl==="all"||s.big)&&inArea(s));}
+function renderSett(){document.querySelectorAll("#settSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===settLvl));
+ $("settOnlyRow").hidden=settLvl==="none";$("settOnly").checked=settOnly;const n=filteredS().length;
+ if(settLvl==="none"){$("settNote").textContent="";return;}
+ $("settNote").textContent=settOnly?`הסבב יכלול ${n} שאלות על ${settLvl==="all"?"יישובים":"ערים"} באזורים שבחרת, בלי כבישים וצמתים.`:
+  `בנוסף יישאלו ${n} שאלות על ${settLvl==="all"?"יישובים":"ערים"} באזורים שבחרת, מעורבבות עם הכבישים והצמתים.`;
+ $("settNote").textContent+=qmode==="type"?" יישוב מסומן בנקודה ומקלידים את שמו.":" יישוב מסומן בנקודה ובוחרים את שמו, לוחצים על היישוב הנכון במפה, או מזהים ליד איזה יישוב עובר כביש.";}
+$("settSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;settLvl=b.dataset.s;try{localStorage.setItem("irl-sett",settLvl);}catch(e){}renderSett();});
+$("settOnly").addEventListener("change",()=>{settOnly=$("settOnly").checked;try{localStorage.setItem("irl-sett-only",settOnly?"1":"0");}catch(e){}renderSett();});
+const sdist=(a,b)=>Math.hypot((a.p[0]-b.p[0])*110,(a.p[1]-b.p[1])*94);
+// nearby settlements as wrong answers: other names, at least 1 km apart
+function nearS(s,k,pool,f=()=>true){const picked=[],seen=new Set([s.name]);
+ for(const o of pool.filter(o=>o.id!==s.id&&f(o)).sort((a,b)=>sdist(a,s)-sdist(b,s))){
+  if(seen.has(o.name)||sdist(o,s)<1||picked.some(x=>sdist(x,o)<1))continue;seen.add(o.name);picked.push(o);if(picked.length>=k*2)break;}
+ return picked.sort(()=>Math.random()-.5).slice(0,k);}
+function makeQS(s){
+ if(qmode==="type")return{t:"stype",s,text:"איך נקרא היישוב המסומן באדום?"};
+ const inSel=filteredS();const pool=inSel.length>=8?inSel:SETT.filter(o=>s.big?o.big:true);
+ const types=["smap","smap","sclick"];if(s.near.length)types.push("sroad");
+ const t=types[Math.floor(Math.random()*types.length)];
+ if(t==="smap"){const o=shuffle([s,...nearS(s,3,pool)]);return{t,s,text:"איזה יישוב מסומן באדום על המפה?",opts:o.map(x=>({label:x.name,ok:x.id===s.id,sid:x.id}))};}
+ if(t==="sclick")return{t,s,text:`לחץ על ${s.name} במפה`,set:[s,...nearS(s,7,pool)]};
+ const n=s.near[Math.floor(Math.random()*s.near.length)];
+ const o=shuffle([s,...nearS(s,3,pool,x=>!x.near.includes(n))]);
+ return{t:"sroad",s,n,text:`ליד איזה יישוב עובר כביש ${n}?`,opts:o.map(x=>({label:x.name,ok:x.id===s.id,sid:x.id}))};}
 function makeQ(r,pool){
  if(qmode==="type")return{t:"type",r,text:"מה מספר הכביש המסומן בכחול?"};
  // wrong answers and clickable roads come only from the current selection (digits + regions), nearest first
@@ -772,22 +812,25 @@ function makeQJ(j){
  if(t==="jclick"){return{t,j,text:`לחץ על ${j.name} במפה`,set:[j,...nearJ(j,7,pool)]};}
  const o=shuffle([j,...nearJ(j,3,pool,x=>!(x.rs.includes(pair[0])&&x.rs.includes(pair[1])))]);
  return{t:"jpair",j,text:`באיזה צומת או מחלף נפגשים כביש ${pair[0]} וכביש ${pair[1]}?`,opts:o.map(x=>({label:x.name,ok:x.id===j.id,jid:x.id}))};}
-function startQuiz(){if(subject==="both"){const pr=filtered(),pj=filteredJ();if(pr.length<4&&pj.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש מעט מדי כבישים וצמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
-  runRound(shuffle([...(pr.length>=4?pr:[]),...(pj.length>=4?pj:[])]));return;}
- if(subject==="junctions"){const pl=filteredJ();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 צמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}runRound(shuffle(pl.slice()));return;}
+function startQuiz(){if(settLvl!=="none"&&settOnly){const ps=filteredS();if(ps.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 יישובים באזורים שבחרת. כדאי לבחור "כל היישובים" או אזור רחב יותר.</p>`;return;}runRoundS(shuffle(ps.slice()));return;}
+ if(subject==="both"){const pr=filtered(),pj=filteredJ();if(pr.length<4&&pj.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש מעט מדי כבישים וצמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
+  runRoundS(shuffle([...(pr.length>=4?pr:[]),...(pj.length>=4?pj:[])]));return;}
+ if(subject==="junctions"){const pl=filteredJ();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 צמתים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}runRoundS(shuffle(pl.slice()));return;}
  const pl=filtered();if(pl.length<4){$("quizBox").hidden=false;$("quizBox").innerHTML=`<p>יש פחות מ־4 כבישים בסינון. כדאי להוסיף ספרות או לבחור אזור רחב יותר.</p>`;return;}
- runRound(shuffle(pl.slice()));}
-function runRound(items){const qs=items.map(x=>x.rs?makeQJ(x):makeQ(x));
- Q={qs,i:0,res:[]};drawRegions();$("quizSetup").hidden=true;$("quizBox").hidden=false;document.body.classList.add("inquiz");window.scrollTo(0,0);sheetFit();showQ();}
+ runRoundS(shuffle(pl.slice()));}
+function runRoundS(items){runRound(shuffle(items.concat(filteredS())));}
+function runRound(items){const qs=items.map(x=>x.sk?makeQS(x):x.rs?makeQJ(x):makeQ(x));
+ Q={qs,i:0,res:[]};drawRegions();$("quizSetup").hidden=true;$("quizBox").hidden=false;document.body.classList.add("inquiz");if(matchMedia("(max-width:900px)").matches)window.scrollTo(0,0);else{const mn=document.querySelector(".main");if(mn)mn.scrollIntoView({block:"start",behavior:"smooth"});}sheetFit();showQ();}
 const bar=()=>{const N=Q.qs.length,ok=Q.res.filter(Boolean).length,no=Q.res.length-ok;
  return `<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${Q.res.length}"><i class="ok" style="width:${100*ok/N}%"></i><i class="no" style="width:${100*no/N}%"></i></div>
  <div class="note" style="margin-top:4px">✓ ${ok} נכונות · ✗ ${no} טעויות · נשארו ${N-Q.res.length}</div>`;};
 function hideAnswers(on){setLabels(!on);hideGoogle(on);}
-function showQ(){const q=Q.qs[Q.i];hideAnswers(true);selLayer.clearLayers();
+function showQ(){const q=Q.qs[Q.i];hideAnswers(true);placeLabels(!q.s);selLayer.clearLayers();
  $("quizBox").innerHTML=`<div class="rowsb"><span class="eyebrow">שאלה ${Q.i+1} מתוך ${Q.qs.length}${Q.res.length>Q.i?" (נענתה)":""}</span><span class="row" style="gap:6px">${Q.i>0?`<button class="btn ghost" id="prevQ" type="button">שאלה קודמת</button>`:""}<button class="btn ghost" id="quitQ" type="button">סיים סבב</button></span></div>${bar()}
- <p class="q">${q.text}</p>${q.t==="jtype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" placeholder="למשל 6 65" aria-label="מספרי הכבישים" style="font:700 1.4rem var(--f-num);width:12ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form><p class="note">אפשר להפריד ברווח או בפסיק.</p>`:q.t==="jclick"?`<div class="clickhint">הצמתים והמחלפים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.j.name}.</div>`:q.t==="type"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="מספר הכביש" aria-label="מספר הכביש" style="font:700 1.6rem var(--f-num);width:8ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="click"?`<div class="clickhint">הכבישים באזור מסומנים בסגול, בלי מספרים. שמות היישובים מופיעים כדי לעזור בהתמצאות. לחץ על הכביש שלדעתך הוא ${q.r.n}.</div>`:`<div class="opts">${q.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${i+1}</span><span style="min-width:0">${o.label}</span></button>`).join("")}</div>`}<div id="fb"></div>`;
+ <p class="q">${q.text}</p>${q.t==="stype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" placeholder="שם היישוב" aria-label="שם היישוב" style="font:700 1.2rem var(--f-body,inherit);width:16ch;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="sclick"?`<div class="clickhint">היישובים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.s.name}.</div>`:q.t==="jtype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" placeholder="למשל 6 65" aria-label="מספרי הכבישים" style="font:700 1.4rem var(--f-num);width:12ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form><p class="note">אפשר להפריד ברווח או בפסיק.</p>`:q.t==="jclick"?`<div class="clickhint">הצמתים והמחלפים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.j.name}.</div>`:q.t==="type"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="מספר הכביש" aria-label="מספר הכביש" style="font:700 1.6rem var(--f-num);width:8ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="click"?`<div class="clickhint">הכבישים באזור מסומנים בסגול, בלי מספרים. שמות היישובים מופיעים כדי לעזור בהתמצאות. לחץ על הכביש שלדעתך הוא ${q.r.n}.</div>`:`<div class="opts">${q.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${i+1}</span><span style="min-width:0">${o.label}</span></button>`).join("")}</div>`}<div id="fb"></div>`;
  $("quitQ").onclick=()=>Q.res.length?summary():endQuiz();if($("prevQ"))$("prevQ").onclick=()=>review(Q.i-1);
  jLayer.clearLayers();
+ if(q.s)return showQS(q);
  if(q.j){netMode="hidden";drawNet();
   if(q.t==="jmap")showJunction(q.j,{name:false,zoom:13});
   else if(q.t==="jpair"){selLayer.clearLayers();map.setView(q.j.p,11);$("mapCap").textContent="המפה תציג את הצומת אחרי התשובה";}
@@ -813,9 +856,41 @@ function showQ(){const q=Q.qs[Q.i];hideAnswers(true);selLayer.clearLayers();
    map.fitBounds([[bb[0]-mLat,bb[1]-mLon],[bb[2]+mLat,bb[3]+mLon]],{padding:[10,10],maxZoom:14});
    $("mapCap").innerHTML=`<b>לחץ על כביש ${q.r.n}</b>`;}
  else if(q.t!=="map"){netMode="hidden";drawNet();map.setView([31.6,35.0],7.5);$("mapCap").textContent="המפה תציג את הכביש אחרי התשובה";}}
+function placeLabels(on){if(placesOn===on)return;placesOn=on;setLabels(labelsOn);}
+const sDot=(s,col,r=8)=>jLayer.addLayer(L.circleMarker(s.p,{radius:r,color:"#ffffff",weight:3,fillColor:col,fillOpacity:1,interactive:false}));
+const sLbl=(s,cls)=>jLayer.addLayer(L.marker(s.p,{interactive:false,keyboard:false,icon:L.divIcon({className:"jlbl",html:`<span${cls?` class="${cls}"`:""}>${s.name}</span>`,iconSize:[0,0]})}));
+// Hebrew names compared without spaces, punctuation, final letters and doubled yod/vav (קרית = קריית)
+const normS=x=>x.replace(/[^א-ת]/g,"").replace(/ך/g,"כ").replace(/ם/g,"מ").replace(/ן/g,"נ").replace(/ף/g,"פ").replace(/ץ/g,"צ").replace(/יי/g,"י").replace(/וו/g,"ו");
+const sNames=s=>[s.name,s.name.split(/[–—(]/)[0]].map(normS).filter(Boolean);
+function showQS(q){const s=q.s;netMode="hidden";drawNet();selLayer.clearLayers();selMain=null;
+ if(q.t==="smap"||q.t==="stype"){sDot(s,"#d93025",9);map.setView(s.p,s.big?11:12);$("mapCap").innerHTML="<b>איזה יישוב מסומן באדום?</b>";}
+ else if(q.t==="sclick"){q.set.forEach(x=>{const mk=L.circleMarker(x.p,{radius:8,color:"#ffffff",weight:3,fillColor:"#7b1fa2",fillOpacity:.95});mk.on("click",ev=>{L.DomEvent.stop(ev);quizClickedS(x.id);});jLayer.addLayer(mk);});
+  map.fitBounds(L.latLngBounds(q.set.slice(0,5).map(x=>x.p)).pad(.3),{maxZoom:13});$("mapCap").innerHTML=`<b>לחץ על ${s.name}</b>`;}
+ else if(q.t==="sroad"){showRoad(q.n,{});$("mapCap").innerHTML=`<b>כביש ${q.n}</b>`;}
+ if(q.t==="stype"){const f=$("typeForm"),inp=$("typeIn");
+  f.addEventListener("submit",e=>{e.preventDefault();const v=inp.value.trim();if(!v){inp.focus();return;}if(Q.res.length>Q.i)return;
+   const nv=normS(v),ok=sNames(s).includes(nv);if(!ok){const w=SETT.find(x=>x.id!==s.id&&sNames(x).includes(nv));if(w)q.pick={s:w.id};}
+   inp.disabled=true;$("typeGo").disabled=true;inp.style.borderColor=ok?"var(--good)":"var(--bad)";inp.style.background=ok?"var(--good-bg)":"var(--bad-bg)";
+   finish(ok,ok?"":`כתבת ${v.replace(/[<>&]/g,"")}.`);});
+  setTimeout(()=>inp.focus({preventScroll:true}),50);}}
+function quizClickedS(id){const q=Q&&Q.qs[Q.i];if(!q||q.t!=="sclick"||Q.res.length>Q.i)return;if(id!==q.s.id)q.pick={s:id};finish(id===q.s.id,id!==q.s.id?`לחצת על ${byS[id].name}.`:"");}
+function markS(ok){P.ans++;if(ok){P.ok++;P.streak++;}else P.streak=0;save();stats();}
+function finishS(q,ok,extra,replay){if(!replay){Q.res.push(ok);markS(ok);}hideAnswers(false);placeLabels(true);const s=q.s;jLayer.clearLayers();
+ if(q.t!=="sroad"){selLayer.clearLayers();selMain=null;}
+ if(q.t==="sclick")q.set.forEach(x=>{if(x.id!==s.id&&!(q.pick&&q.pick.s===x.id)){jLayer.addLayer(L.circleMarker(x.p,{radius:5,color:"#ffffff",weight:2,fillColor:"#7b1fa2",fillOpacity:.8,interactive:false}));sLbl(x,"other");}});
+ sDot(s,"#d93025",9);sLbl(s);
+ const w=q.pick&&q.pick.s!=null?byS[q.pick.s]:null;
+ if(w){sDot(w,"#e8710a");sLbl(w,"wrong");map.fitBounds(L.latLngBounds([s.p,w.p]).pad(.4),{maxZoom:13});}
+ else if(q.t==="sroad"){const b=byN[q.n].bb;map.fitBounds(L.latLngBounds([[b[0],b[1]],[b[2],b[3]],s.p]),{padding:[30,30],maxZoom:12});}
+ else if(q.t!=="sclick")map.setView(s.p,s.big?11:12);
+ setGoogle(s.p[0],s.p[1],13);
+ const reg=s.R.length?RG.regions[s.R[0]].name:"";
+ $("fb").innerHTML=`<div class="feedback ${ok?"ok":"no"}"><strong>${ok?"נכון.":"לא הפעם."}</strong> ${extra} <b>${s.name}</b>${reg?`, ${reg}`:""}.${s.near.length?` כבישים סמוכים: ${s.near.map(n=>"כביש "+n).join(", ")}.`:""}
+ <div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
+ $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});}
 function quizClickedJ(id){const q=Q&&Q.qs[Q.i];if(!q||q.t!=="jclick"||Q.res.length>Q.i)return;if(id!==q.j.id)q.pick={j:id};finish(id===q.j.id,id!==q.j.id?`לחצת על ${byJ[id].name}.`:"");}
 function quizClicked(n,ll){const q=Q&&Q.qs[Q.i];if(!q||q.t!=="click"||Q.res.length>Q.i)return;if(n!==q.r.n)q.pick={r:n};finish(n===q.r.n,n!==q.r.n?`לחצת על כביש ${n}.`:"");}
-function answer(i){const q=Q.qs[Q.i];if(Q.res.length>Q.i||q.t==="click"||q.t==="jclick"||!q.opts)return;const ok=q.opts[i].ok;q.chosen=i;if(!ok){const o=q.opts[i];q.pick=o.jid!=null?{j:o.jid}:o.n!=null?{r:o.n}:null;}
+function answer(i){const q=Q.qs[Q.i];if(Q.res.length>Q.i||q.t==="click"||q.t==="jclick"||!q.opts)return;const ok=q.opts[i].ok;q.chosen=i;if(!ok){const o=q.opts[i];q.pick=o.sid!=null?{s:o.sid}:o.jid!=null?{j:o.jid}:o.n!=null?{r:o.n}:null;}
  document.querySelectorAll(".opt").forEach((b,j)=>{b.disabled=true;if(q.opts[j].ok)b.classList.add("right");else if(j===i)b.classList.add("wrong");});finish(ok,"");}
 function showPick(q){const p=q.pick;if(!p)return;const OR="#e8710a";
  if(p.j!=null){const w=byJ[p.j];if(!w)return;jLayer.addLayer(L.circleMarker(w.p,{radius:8,color:"#ffffff",weight:3,fillColor:OR,fillOpacity:1,interactive:false}));
@@ -827,6 +902,7 @@ function showPick(q){const p=q.pick;if(!p)return;const OR="#e8710a";
  if(selMain&&q.r)selMain.bringToFront();
  if(p.r!=null&&q.r&&q.t!=="click"&&byN[p.r]){const a=q.r.bb,b=byN[p.r].bb;map.fitBounds([[Math.min(a[0],b[0]),Math.min(a[1],b[1])],[Math.max(a[2],b[2]),Math.max(a[3],b[3])]],{padding:[40,40],maxZoom:14});}}
 function finish(ok,extra,replay){const q=Q.qs[Q.i];if(!replay){q.okv=ok;q.extra=extra;const ti=$("typeIn");if(ti)q.typed=ti.value;}const pn="";
+ if(q.s)return finishS(q,ok,extra,replay);
  if(q.j){if(!replay){Q.res.push(ok);markJ(q.j.id,ok);}hideAnswers(false);const j=q.j;
   if(q.t==="jclick"){q.set.forEach(x=>{if(x.id!==j.id&&!(q.pick&&q.pick.j===x.id))jLayer.addLayer(L.marker(x.p,{interactive:false,keyboard:false,icon:L.divIcon({className:"jlbl",html:`<span class="other">${x.name}</span>`,iconSize:[0,0]})}));});
    reqRoads(j).forEach(n=>selLayer.addLayer(L.polyline(byN[n].g,{renderer:canvas,color:"#1a73e8",weight:roadW(),opacity:.9,interactive:false})));
@@ -842,22 +918,40 @@ function finish(ok,extra,replay){const q=Q.qs[Q.i];if(!replay){q.okv=ok;q.extra=
  $("fb").innerHTML=`<div class="feedback ${ok?"ok":"no"}"><strong>${ok?"נכון.":"לא הפעם."}</strong> ${extra} כביש <b>${r.n}</b>: ${r.access?`כביש הגישה ל${r.f}`:`${r.f} – ${r.t}`}.${r.v.length?` עובר ליד ${r.v.slice(0,4).join(", ")}.`:""}
  ${pn}<div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
  $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});}
+const finish0=finish;
+finish=function(ok,extra,replay){const q=Q.qs[Q.i];if(!replay)q.snap=JSON.stringify(P);finish0(ok,extra,replay);
+ if(replay||ok||!["type","jtype","stype"].includes(q.t)||Q.res.length!==Q.i+1)return;
+ const nb=$("nextQ");if(!nb)return;const b=document.createElement("button");b.className="btn ghost";b.type="button";b.id="typoQ";b.textContent="טעות הקלדה? לתקן";
+ nb.before(b);nb.parentNode.style.gap="8px";
+ b.onclick=()=>{if(Q.res.length!==Q.i+1)return;P=JSON.parse(q.snap);save();stats();Q.res.pop();const prev=q.typed||"";delete q.okv;delete q.extra;delete q.typed;q.pick=null;
+  showQ();const inp=$("typeIn");if(inp){inp.value=prev;setTimeout(()=>{inp.focus({preventScroll:true});inp.select();},60);}};};
 function next(){Q.i++;if(Q.i<Q.res.length)review(Q.i);else if(Q.i<Q.qs.length)showQ();else summary();}
 // go back to an answered question and show it the way it was answered
 function review(k){Q.i=k;showQ();const q=Q.qs[k];
  if(q.opts&&q.chosen!=null)document.querySelectorAll(".opt").forEach((b,j)=>{b.disabled=true;if(q.opts[j].ok)b.classList.add("right");else if(j===q.chosen)b.classList.add("wrong");});
  const inp=$("typeIn");if(inp){inp.value=q.typed||"";inp.disabled=true;$("typeGo").disabled=true;inp.style.borderColor=q.okv?"var(--good)":"var(--bad)";inp.style.background=q.okv?"var(--good-bg)":"var(--bad-bg)";}
  finish(q.okv,q.extra||"",true);}
-function summary(){leaveSheet();const ans=Q.res.length;const c=Q.res.filter(Boolean).length;jLayer.clearLayers();netMode="study";drawNet();
+function showResults(){selLayer.clearLayers();selMain=null;const R=new Map(),pts=[];
+ Q.qs.forEach((q,i)=>{if(i>=Q.res.length)return;const k=q.s?"s"+q.s.id:q.j?"j"+q.j.id:"r"+q.r.n,o=R.get(k);R.set(k,{it:q.s||q.j||q.r,j:!!(q.j||q.s),ok:(o?o.ok:true)&&Q.res[i]});});
+ const all=[...R.values()],GOOD="#1e8e3e",BAD="#d93025";
+ all.filter(x=>!x.j).sort((a,b)=>b.ok-a.ok).forEach(x=>{const r=x.it;   // wrong ones drawn last, on top
+  const pl=L.polyline(r.g,{renderer:canvas,color:x.ok?GOOD:BAD,weight:roadW()+1,opacity:.95});
+  pl.bindTooltip(`כביש ${r.n}${x.ok?" ✓":" ✗"}`,{sticky:true,direction:"top"});pl.on("click",ev=>L.DomEvent.stop(ev));
+  selLayer.addLayer(pl);pts.push(L.latLng(r.bb[0],r.bb[1]),L.latLng(r.bb[2],r.bb[3]));});
+ all.filter(x=>x.j).sort((a,b)=>b.ok-a.ok).forEach(x=>{const j=x.it;
+  jLayer.addLayer(L.circleMarker(j.p,{radius:7,color:"#ffffff",weight:2.5,fillColor:x.ok?GOOD:BAD,fillOpacity:1}).bindTooltip(`${j.name}${x.ok?" ✓":" ✗"}`,{direction:"top"}));pts.push(L.latLng(j.p));});
+ if(pts.length)map.fitBounds(L.latLngBounds(pts).pad(.08),{maxZoom:12});$("mapCap").innerHTML="<b>תוצאות הסבב</b>";}
+function summary(){leaveSheet();placeLabels(true);const ans=Q.res.length;const c=Q.res.filter(Boolean).length;jLayer.clearLayers();netMode="study";drawNet();showResults();
  // missed items (roads and/or junctions), each once, in the order they were asked
- const seen=new Set(),miss=[];Q.qs.forEach((q,i)=>{if(i<Q.res.length&&!Q.res[i]){const it=q.j||q.r,key=(q.j?"j":"r")+(q.j?q.j.id:q.r.n);if(!seen.has(key)){seen.add(key);miss.push(it);}}});
- const itemBtn=it=>it.rs?`<button class="roaditem" type="button" data-studyj="${it.id}"><span class="nm">${it.name}</span>${jsh(it)}</button>`:`<button class="roaditem" type="button" data-study="${it.n}">${sh(it)}<span class="nm">${it.title}</span></button>`;
+ const seen=new Set(),miss=[];Q.qs.forEach((q,i)=>{if(i<Q.res.length&&!Q.res[i]){const it=q.s||q.j||q.r,key=q.s?"s"+q.s.id:(q.j?"j":"r")+(q.j?q.j.id:q.r.n);if(!seen.has(key)){seen.add(key);miss.push(it);}}});
+ const itemBtn=it=>it.sk?`<button class="roaditem" type="button" data-studys="${it.id}"><span class="nm">${it.name}</span></button>`:it.rs?`<button class="roaditem" type="button" data-studyj="${it.id}"><span class="nm">${it.name}</span>${jsh(it)}</button>`:`<button class="roaditem" type="button" data-study="${it.n}">${sh(it)}<span class="nm">${it.title}</span></button>`;
  $("quizBox").innerHTML=`<div class="eyebrow">סיכום הסבב</div>${bar()}<div class="rowsb" style="margin:14px 0"><div><div class="big">${c}/${ans}</div><div class="note">תשובות נכונות${ans<Q.qs.length?` (נענו ${ans} מתוך ${Q.qs.length})`:""}</div></div><div class="row">${miss.length?`<button class="btn" id="retryMiss" type="button">סבב על הטעויות (${miss.length})</button>`:""}<button class="btn${miss.length?" ghost":""}" id="again" type="button">סבב מלא חדש</button><button class="btn ghost" id="toSetup" type="button">חזרה</button></div></div>
  ${miss.length?`<p style="margin:0 0 8px">כדאי לחזור על:</p><div class="list">${miss.map(itemBtn).join("")}</div>`:`<p>סבב נקי, בלי טעויות.</p>`}`;
  $("again").onclick=startQuiz;$("toSetup").onclick=endQuiz;if($("retryMiss"))$("retryMiss").onclick=()=>runRound(shuffle(miss.slice()));
  document.querySelectorAll("[data-study]").forEach(b=>b.onclick=()=>{setMode("study");selectRoad(+b.dataset.study);});
- document.querySelectorAll("[data-studyj]").forEach(b=>b.onclick=()=>{setMode("study");selectJunction(+b.dataset.studyj);});}
-function endQuiz(){leaveSheet();Q=null;drawRegions();hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
+ document.querySelectorAll("[data-studyj]").forEach(b=>b.onclick=()=>{setMode("study");selectJunction(+b.dataset.studyj);});
+ document.querySelectorAll("[data-studys]").forEach(b=>b.onclick=()=>{const s=byS[+b.dataset.studys];showResults();sDot(s,"#d93025",10);sLbl(s);map.setView(s.p,12);});}
+function endQuiz(){leaveSheet();placeLabels(true);selLayer.clearLayers();selMain=null;Q=null;drawRegions();hideAnswers(false);if(typeof jLayer!=="undefined")jLayer.clearLayers();netMode="study";drawNet();$("quizBox").hidden=true;$("quizSetup").hidden=false;}
 $("quizBox").addEventListener("click",e=>{const b=e.target.closest(".opt");if(b&&!b.disabled)answer(+b.dataset.i);});
 document.addEventListener("keydown",e=>{if(mode!=="quiz"||!Q||e.target.tagName==="INPUT")return;
  if(/^[1-4]$/.test(e.key)){const q=Q.qs[Q.i];const i=+e.key-1;if(q&&q.opts&&i<q.opts.length&&Q.res.length===Q.i)answer(i);}

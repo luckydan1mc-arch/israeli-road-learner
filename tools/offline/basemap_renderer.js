@@ -98,7 +98,7 @@ function drawBasemap(ctx,bounds,m){
  const places=BM.places.filter(p=>z>=placeMinZ(p));
  // cities and big towns first, then road numbers, then the rest
  const big=places.filter(p=>p.k<=1),rest=places.filter(p=>p.k>1);
- for(const p of big)label(p.n,p.x*S-ox,p.y*S-oy,PK[p.k].f,PK[p.k].c);
+ if(typeof placesOn==="undefined"||placesOn)for(const p of big)label(p.n,p.x*S-ox,p.y*S-oy,PK[p.k].f,PK[p.k].c);
  if(z>=9)for(const w of BM.wl)if(w.a>2e7||z>=10.5)label(w.n,w.x*S-ox,w.y*S-oy,'italic 600 13px "Segoe UI",Arial,sans-serif',"#2f6690","rgba(240,248,255,.9)");
  if(labelsOn&&z>=7.5){let count=0;const spacing=z<10?260:300;
   ctx.font='700 11px "Segoe UI",Arial,sans-serif';
@@ -114,7 +114,7 @@ function drawBasemap(ctx,bounds,m){
       else acc+=spacing*.25;}
      acc-=seg;lx=x;ly=y;}}
    if(count>400)break;}}
- for(const p of rest)label(p.n,p.x*S-ox,p.y*S-oy,PK[p.k].f,PK[p.k].c);
+ if(typeof placesOn==="undefined"||placesOn)for(const p of rest)label(p.n,p.x*S-ox,p.y*S-oy,PK[p.k].f,PK[p.k].c);
  // street names along the street direction
  if(labelsOn&&z>=14.5&&BM.st&&BM.sn){const minz=[0,0,14.5,14.5,15,15.5];ctx.font='500 11px "Segoe UI",Arial,sans-serif';
   for(const a of BM.st){if(z<minz[a.c])continue;const x=a.x*S-ox,y=a.y*S-oy;if(!inView(x,y))continue;
