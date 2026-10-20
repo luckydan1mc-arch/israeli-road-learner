@@ -321,6 +321,7 @@ ul.facts{margin:6px 0 0;padding-inline-start:20px}
 .lchip i{width:20px;height:5px;border-radius:3px;flex:none}
 .lchip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:rgba(21,88,199,.07);font-weight:600}
 body.inquiz #layersBtn,body.inquiz #layersPanel{display:none!important}
+#layersBtn{margin-inline-start:auto}
 </style>
 </head>
 <body>
@@ -807,14 +808,33 @@ function makeQS(s){
 const LCOL={1:"#d32f2f",2:"#ef6c00",3:"#2e7d32",4:"#7b1fa2"},LW={1:3.6,2:3,3:2.3,4:1.7};
 let lay={d:[],j:"none",s:"none"};try{Object.assign(lay,JSON.parse(localStorage.getItem("irl-layers")||"{}"));}catch(e){}
 const ovl=L.layerGroup().addTo(map);
+// the chosen area (regions, or the chosen councils inside a region) as shapes of even-odd rings; roads are cut to it
+let areaKey=null,areaShapes=null,clipCache={};
+function areaNow(){const key=[...selR].sort().join(",")+"|"+[...selC].sort().join(",");
+ if(key!==areaKey){areaKey=key;clipCache={};
+  areaShapes=selR.size?[...selR].flatMap(g=>{const cs=[...selC].filter(c=>RG.councils[c].region===g);return cs.length?cs.map(c=>RG.councils[c].o):[RG.regions[g].o];})
+   .map(rings=>rings.map(r=>{let a=90,b=180,c=-90,d=-180;r.forEach(p=>{if(p[0]<a)a=p[0];if(p[0]>c)c=p[0];if(p[1]<b)b=p[1];if(p[1]>d)d=p[1];});return{r,bb:[a,b,c,d]};})):null;}
+ return areaShapes;}
+function inRing(p,r){let ins=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const yi=r[i][0],xi=r[i][1],yj=r[j][0],xj=r[j][1];
+ if(((yi>p[0])!==(yj>p[0]))&&(p[1]<(xj-xi)*(p[0]-yi)/(yj-yi)+xi))ins=!ins;}return ins;}
+function inShapes(p){for(const sh of areaShapes){let c=0;for(const R of sh){const b=R.bb;if(p[0]<b[0]||p[0]>b[2]||p[1]<b[1]||p[1]>b[3])continue;if(inRing(p,R.r))c++;}if(c%2)return true;}return false;}
+function edgePt(o,i){let a=o,b=i;for(let k=0;k<12;k++){const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(inShapes(m))b=m;else a=m;}return b;}   // where a segment crosses the area's border
+function clipRoad(r){if(!areaNow())return r.g;if(clipCache[r.n])return clipCache[r.n];const out=[];
+ for(const line of r.g){let cur=null,prev=null,pin=false;
+  for(const p of line){const ins=inShapes(p);
+   if(prev&&ins&&!pin)cur=[edgePt(prev,p)];else if(prev&&!ins&&pin){cur.push(edgePt(p,prev));if(cur.length>1)out.push(cur);cur=null;}else if(!prev&&ins)cur=[];
+   if(ins)cur.push(p);prev=p;pin=ins;}
+  if(cur&&cur.length>1)out.push(cur);}
+ return clipCache[r.n]=out;}
 function drawOverlay(){ovl.clearLayers();if(Q)return;   // nothing extra on the map during a quiz round
  [4,3,2,1].filter(d=>lay.d.includes(d)).forEach(d=>ROADS.filter(r=>r.dig===d&&inArea(r)).forEach(r=>{
-  const pl=L.polyline(r.g,{renderer:canvas,color:LCOL[d],weight:LW[d],opacity:.9});pl.bindTooltip("כביש "+r.n,{sticky:true,direction:"top"});
+  const g=clipRoad(r);if(!g.length)return;
+  const pl=L.polyline(g,{renderer:canvas,color:LCOL[d],weight:LW[d],opacity:.9});pl.bindTooltip("כביש "+r.n,{sticky:true,direction:"top"});
   pl.on("click",ev=>{L.DomEvent.stop(ev);if(mode==="study")selectRoad(r.n,{fit:false});});ovl.addLayer(pl);}));
- if(lay.j!=="none")JUNC.filter(j=>(lay.j==="all"||j.kind==="i")&&inArea(j)).forEach(j=>{const ic=j.kind==="i";
+ if(lay.j!=="none")JUNC.filter(j=>(lay.j==="all"||j.kind==="i")&&inArea(j)&&(!areaNow()||inShapes(j.p))).forEach(j=>{const ic=j.kind==="i";
   const mk=L.circleMarker(j.p,{renderer:canvas,radius:ic?5:4,color:"#ffffff",weight:1.5,fillColor:ic?"#1558c7":"#00838f",fillOpacity:1});
   mk.bindTooltip(j.name,{direction:"top"});mk.on("click",ev=>{L.DomEvent.stop(ev);if(mode==="study")selectJunction(j.id,{fit:false});});ovl.addLayer(mk);});
- if(lay.s!=="none")SETT.filter(s=>(lay.s==="all"||s.big)&&inArea(s)).forEach(s=>{
+ if(lay.s!=="none")SETT.filter(s=>(lay.s==="all"||s.big)&&inArea(s)&&(!areaNow()||inShapes(s.p))).forEach(s=>{
   const mk=L.circleMarker(s.p,{renderer:canvas,radius:s.big?5.5:3.5,color:"#ffffff",weight:1.2,fillColor:"#37474f",fillOpacity:1});
   mk.bindTooltip(s.name,{direction:"top"});mk.on("click",ev=>L.DomEvent.stop(ev));ovl.addLayer(mk);});
  if(selMain)selMain.bringToFront();}
