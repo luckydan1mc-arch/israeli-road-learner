@@ -659,7 +659,7 @@ function applyLabels(){
    m.setLayoutProperty(l.id,"visibility",((labelsOn||!roadish)&&(placesOn||sl!=="place")&&(baseShields||!(roadish&&isRef)))?"visible":"none");});}}
  if(baseKey==="sat"&&placesOn)SAT_LABELS.addTo(map);else map.removeLayer(SAT_LABELS);}
 function setLabels(on){labelsOn=on;applyLabels();}
-function setBase(k){Object.values(BASES).forEach(b=>map.removeLayer(b));BASES[k].addTo(map);baseKey=k;
+function setBase(k){Object.values(BASES).forEach(b=>map.removeLayer(b));BASES[k].addTo(map);baseKey=k;map.setMaxZoom(k==="sat"?17:19);
  document.querySelectorAll("#baseSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.b===k));applyLabels();drawNet();if(typeof drawOverlay==="function")drawOverlay();}
 BASES.map.addTo(map);
 $("baseSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setBase(b.dataset.b);});
