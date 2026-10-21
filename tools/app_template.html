@@ -343,6 +343,30 @@ body.noreglbl .main:not(.picking) .rlbl{display:none}
   border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);white-space:nowrap;pointer-events:none}
 .drive{margin-top:14px;padding-top:12px;border-top:1px solid rgba(20,35,63,.1)}
 .drive .note{margin:6px 0 0}
+/* ---- full-screen map and the phone quiz: the map takes the whole screen, controls float on it as clear glass ---- */
+body.mapfull .mapcol>.mapbox:first-child{display:block!important;padding:0!important;background:#dde5ee!important;border:0!important;box-shadow:none!important}
+body.mapfull #map{position:absolute!important;inset:0;height:100%!important;min-height:0;border-radius:0!important}
+body.mapfull .mapcol>.mapbox:first-child .bar{position:absolute;z-index:1000;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;margin:0;pointer-events:none}
+body.mapfull .mapcol>.mapbox:first-child .bar>*{pointer-events:auto}
+body.mapfull .bar>.cap:empty{visibility:hidden}
+body.mapfull .bar .btn,body.mapfull .bar .seg,body.mapfull .bar>.cap:not(:empty),
+body.mapfull .lpanel,body.mapfull.fdrawer .filters,body.mapfull #regionPanel:not([hidden]){
+  background:rgba(255,255,255,.58)!important;-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.75)!important;box-shadow:0 6px 24px rgba(22,52,110,.16)!important}
+body.mapfull .bar>.cap:not(:empty){padding:7px 12px;border-radius:999px}
+body.mapfull .bar .seg button[aria-pressed="false"]{background:transparent}
+body.mapfull .leaflet-top{top:calc(var(--barh,44px) + 12px)}
+body.mapfull .lpanel{top:calc(var(--barh,44px) + 18px)}
+@media (max-width:900px){
+  body.inquiz .mapcol>.mapbox:first-child{position:fixed!important;inset:0;z-index:900;padding:0!important;margin:0;border-radius:0!important;border:0!important;background:#dde5ee!important;box-shadow:none!important}
+  body.inquiz #map{position:absolute!important;inset:0;height:100%!important;min-height:0!important;border-radius:0!important}
+  body.inquiz .mapcol>.mapbox:first-child .bar{top:max(10px,env(safe-area-inset-top));right:10px}
+  body.inquiz #baseSeg,body.inquiz #quizBox{background:rgba(255,255,255,.58)!important;-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);
+    border:1px solid rgba(255,255,255,.75)!important;box-shadow:0 6px 26px rgba(22,52,110,.18)!important}
+  body.inquiz #quizBox{max-height:50vh;max-height:50dvh}
+  body.inquiz #quizBox .opt,body.inquiz #quizBox .btn.ghost,body.inquiz #quizBox .clickhint,body.inquiz #quizBox .feedback{background:rgba(255,255,255,.5)}
+  body.inquiz .leaflet-top{top:max(0px,env(safe-area-inset-top))}
+}
 </style>
 </head>
 <body>
@@ -1167,6 +1191,14 @@ function fullFilt(o){document.body.classList.toggle("fdrawer",o);$("fullFilt").s
 $("fullBtn").onclick=()=>setFull(!document.body.classList.contains("mapfull"));
 $("fullFilt").onclick=()=>fullFilt(!document.body.classList.contains("fdrawer"));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("mapfull")){if(document.body.classList.contains("fdrawer"))fullFilt(false);else setFull(false);}});
+if(window.ResizeObserver){const bar=document.querySelector(".mapcol>.mapbox:first-child .bar");new ResizeObserver(()=>document.body.style.setProperty("--barh",bar.offsetHeight+"px")).observe(bar);}
+// phone quiz: the map is the whole screen and the question floats over its lower part, so whatever the quiz
+// frames or centres is kept above the floating question
+const sheetPad=()=>document.body.classList.contains("inquiz")&&matchMedia("(max-width:900px)").matches?($("quizBox").offsetHeight||0)+16:0;
+{const fit0=map.fitBounds.bind(map),view0=map.setView.bind(map);
+ map.fitBounds=function(b,o){o=o||{};const s=sheetPad();if(s){const pb=L.point(o.paddingBottomRight||o.padding||[0,0]),pt=L.point(o.paddingTopLeft||o.padding||[0,0]);
+  o=Object.assign({},o,{paddingBottomRight:[pb.x,pb.y+s],paddingTopLeft:[pt.x,pt.y+56]});}return fit0(b,o);};
+ map.setView=function(c,z,o){const r=view0(c,z,o);if(!(o&&o.zoom!==undefined)){const s=sheetPad();if(s)map.panBy([0,s/2-28],{animate:false});}return r;};}   // Leaflet's own zooming passes o.zoom and is left alone
 function setNoSel(v){noSel=v;try{localStorage.setItem("irl-nosel",v?"1":"0");}catch(e){}updSelBtn();}
 function updSelBtn(){const b=$("clearSel");if(b)b.hidden=noSel||mode!=="study";}
 function showNoSel(){selLayer.clearLayers();selMain=null;jLayer.clearLayers();$("mapCap").textContent="";
