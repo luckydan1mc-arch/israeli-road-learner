@@ -473,6 +473,7 @@ body.noreglbl .main:not(.picking) .rlbl{display:none}
             <div class="seg" id="qmodeSeg">
               <button type="button" data-m="choice" aria-pressed="true">אפשרויות לבחירה</button>
               <button type="button" data-m="type" aria-pressed="false">הקלדת מספר הכביש</button>
+              <button type="button" data-m="master" aria-pressed="false">מאסטר</button>
             </div></div>
           <p class="note" id="qmodeNote" style="margin-top:8px"></p>
           <div class="row" style="margin-top:10px"><span class="flabel">יישובים</span>
@@ -807,8 +808,8 @@ function pickWeighted(list,avoid){const c=list.filter(r=>!avoid.has(r.n));const 
 function near(r,k,pool,f=()=>true){return pool.filter(o=>o.n!==r.n&&f(o)).sort((a,b)=>dist(a,r)-dist(b,r)).slice(0,k*3).sort(()=>Math.random()-.5).slice(0,k);}
 let qmode="choice";
 try{qmode=localStorage.getItem("irl-qmode")||"choice";}catch(e){}
-const QMODE_NOTE={choice:"כביש מסומן בכחול ובוחרים את המספר מתוך 4 אפשרויות, או לוחצים על הכביש הנכון במפה.",type:"כביש מסומן בכחול על המפה, ובלי שום אפשרויות מקלידים את מספר הכביש."};
-const QMODE_NOTE_J={choice:"צומת או מחלף מסומן באדום ובוחרים את השם מתוך 4 אפשרויות, לוחצים על הצומת הנכון במפה, או מזהים באיזה צומת נפגשים שני כבישים.",type:"מופיע שם של צומת או מחלף, ומקלידים את מספרי הכבישים שנפגשים בו."};
+const QMODE_NOTE={master:"מצב מאסטר: אין שום סימון, אין אפשרויות ואין מספרי כבישים על המפה. מופיע רק מספר הכביש, ומחפשים אותו בעצמך: מזיזים, מגדילים ולוחצים עליו.",choice:"כביש מסומן בכחול ובוחרים את המספר מתוך 4 אפשרויות, או לוחצים על הכביש הנכון במפה.",type:"כביש מסומן בכחול על המפה, ובלי שום אפשרויות מקלידים את מספר הכביש."};
+const QMODE_NOTE_J={master:"בצמתים: מופיע רק שם הצומת או המחלף, ולוחצים על המקום שלו במפה.",choice:"צומת או מחלף מסומן באדום ובוחרים את השם מתוך 4 אפשרויות, לוחצים על הצומת הנכון במפה, או מזהים באיזה צומת נפגשים שני כבישים.",type:"מופיע שם של צומת או מחלף, ומקלידים את מספרי הכבישים שנפגשים בו."};
 function renderQmode(){if(typeof renderSett==="function")setTimeout(renderSett,0);document.querySelectorAll("#qmodeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===qmode));$("qmodeNote").textContent=subject==="both"?QMODE_NOTE[qmode]+" "+QMODE_NOTE_J[qmode]:(subject==="junctions"?QMODE_NOTE_J:QMODE_NOTE)[qmode];
  const tb=document.querySelector('#qmodeSeg [data-m="type"]');if(tb)tb.textContent=subject==="roads"?"הקלדת מספר הכביש":"הקלדת מספרי כבישים";}
 $("qmodeSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;qmode=b.dataset.m;try{localStorage.setItem("irl-qmode",qmode);}catch(e){}renderQmode();});
@@ -820,7 +821,7 @@ function renderSett(){document.querySelectorAll("#settSeg button").forEach(b=>b.
  if(settLvl==="none"){$("settNote").textContent="";return;}
  $("settNote").textContent=settOnly?`הסבב יכלול ${n} שאלות על ${settLvl==="all"?"יישובים":"ערים"} באזורים שבחרת, בלי כבישים וצמתים.`:
   `בנוסף יישאלו ${n} שאלות על ${settLvl==="all"?"יישובים":"ערים"} באזורים שבחרת, מעורבבות עם הכבישים והצמתים.`;
- $("settNote").textContent+=qmode==="type"?" יישוב מסומן בנקודה ומקלידים את שמו.":" יישוב מסומן בנקודה ובוחרים את שמו, לוחצים על היישוב הנכון במפה, או מזהים ליד איזה יישוב עובר כביש.";}
+ $("settNote").textContent+=qmode==="master"?" במאסטר מופיע רק שם היישוב, והמפה בלי שמות יישובים.":qmode==="type"?" יישוב מסומן בנקודה ומקלידים את שמו.":" יישוב מסומן בנקודה ובוחרים את שמו, לוחצים על היישוב הנכון במפה, או מזהים ליד איזה יישוב עובר כביש.";}
 $("settSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;settLvl=b.dataset.s;try{localStorage.setItem("irl-sett",settLvl);}catch(e){}renderSett();});
 $("settOnly").addEventListener("change",()=>{settOnly=$("settOnly").checked;try{localStorage.setItem("irl-sett-only",settOnly?"1":"0");}catch(e){}renderSett();});
 const sdist=(a,b)=>Math.hypot((a.p[0]-b.p[0])*110,(a.p[1]-b.p[1])*94);
@@ -830,6 +831,7 @@ function nearS(s,k,pool,f=()=>true){const picked=[],seen=new Set([s.name]);
   if(seen.has(o.name)||sdist(o,s)<1||picked.some(x=>sdist(x,o)<1))continue;seen.add(o.name);picked.push(o);if(picked.length>=k*2)break;}
  return picked.sort(()=>Math.random()-.5).slice(0,k);}
 function makeQS(s){
+ if(qmode==="master")return{t:"msclick",m:1,s,text:`לחץ על ${s.name}`};
  if(qmode==="type")return{t:"stype",s,text:"איך נקרא היישוב המסומן באדום?"};
  const inSel=filteredS();const pool=inSel.length>=8?inSel:SETT.filter(o=>s.big?o.big:true);
  const types=["smap","smap","sclick"];if(s.near.length)types.push("sroad");
@@ -954,6 +956,7 @@ function driveGo(){const p=drivePrompt(12000);const url="https://claude.ai/new?q
  $("driveMsg").textContent="נפתח Claude בחלון חדש. אם ההנחיות לא הופיעו שם, הדבק אותן (הן בלוח) ושלח, ואז לחץ על כפתור הקול.";}
 if(ONLINE){$("driveBox").hidden=false;$("driveBtn").onclick=driveGo;}
 function makeQ(r,pool){
+ if(qmode==="master")return{t:"mclick",m:1,r,text:`לחץ על כביש ${r.n}`};
  if(qmode==="type")return{t:"type",r,text:"מה מספר הכביש המסומן בכחול?"};
  // wrong answers and clickable roads come only from the current selection (digits + regions), nearest first
  const inSel=filtered();const sameDig=inSel.length>=4?inSel:ROADS.filter(o=>digits.has(o.dig));
@@ -976,6 +979,7 @@ function nearJ(j,k,pool,f=()=>true){const picked=[],seen=new Set([j.name]);
 // roads of the selected levels at a junction (what the player is expected to know)
 const reqRoads=j=>{const r=selRoads(j);return r.length?r:j.rs;};
 function makeQJ(j){
+ if(qmode==="master")return{t:"mjclick",m:1,j,text:`לחץ על ${j.name}`};
  if(qmode==="type")return{t:"jtype",j,text:`אילו כבישים נפגשים ב${j.name}?`};
  const inSel=filteredJ();const pool=inSel.length>=4?inSel:JUNC;
  const req=reqRoads(j);const types=["jmap","jmap","jclick"];
@@ -1003,9 +1007,10 @@ const bar=()=>{const N=Q.qs.length,ok=Q.res.filter(Boolean).length,no=Q.res.leng
 function hideAnswers(on){setLabels(!on);hideGoogle(on);}
 function showQ(){const q=Q.qs[Q.i];hideAnswers(true);placeLabels(!q.s);selLayer.clearLayers();
  $("quizBox").innerHTML=`<div class="rowsb"><span class="eyebrow">שאלה ${Q.i+1} מתוך ${Q.qs.length}${Q.res.length>Q.i?" (נענתה)":""}</span><span class="row" style="gap:6px">${Q.i>0?`<button class="btn ghost" id="prevQ" type="button">שאלה קודמת</button>`:""}<button class="btn ghost" id="quitQ" type="button">סיים סבב</button></span></div>${bar()}
- <p class="q">${q.text}</p>${q.t==="stype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" placeholder="שם היישוב" aria-label="שם היישוב" style="font:700 1.2rem var(--f-body,inherit);width:16ch;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="sclick"?`<div class="clickhint">היישובים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.s.name}.</div>`:q.t==="jtype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" placeholder="למשל 6 65" aria-label="מספרי הכבישים" style="font:700 1.4rem var(--f-num);width:12ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form><p class="note">אפשר להפריד ברווח או בפסיק.</p>`:q.t==="jclick"?`<div class="clickhint">הצמתים והמחלפים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.j.name}.</div>`:q.t==="type"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="מספר הכביש" aria-label="מספר הכביש" style="font:700 1.6rem var(--f-num);width:8ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="click"?`<div class="clickhint">הכבישים באזור מסומנים בסגול, בלי מספרים. שמות היישובים מופיעים כדי לעזור בהתמצאות. לחץ על הכביש שלדעתך הוא ${q.r.n}.</div>`:`<div class="opts">${q.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${i+1}</span><span style="min-width:0">${o.label}</span></button>`).join("")}</div>`}<div id="fb"></div>`;
+ <p class="q">${q.text}</p>${q.m?`<div class="clickhint">מאסטר: בלי סימון ובלי אפשרויות. הזז והגדל את המפה ולחץ ${q.r?"על הכביש":q.j?"על מקום הצומת":"על מקום היישוב"}.</div><p class="note" id="mmsg" role="status"></p>`:q.t==="stype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" placeholder="שם היישוב" aria-label="שם היישוב" style="font:700 1.2rem var(--f-body,inherit);width:16ch;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="sclick"?`<div class="clickhint">היישובים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.s.name}.</div>`:q.t==="jtype"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" placeholder="למשל 6 65" aria-label="מספרי הכבישים" style="font:700 1.4rem var(--f-num);width:12ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form><p class="note">אפשר להפריד ברווח או בפסיק.</p>`:q.t==="jclick"?`<div class="clickhint">הצמתים והמחלפים באזור מסומנים בנקודות, בלי שמות. לחץ על ${q.j.name}.</div>`:q.t==="type"?`<form id="typeForm" class="row" autocomplete="off"><input id="typeIn" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="מספר הכביש" aria-label="מספר הכביש" style="font:700 1.6rem var(--f-num);width:8ch;text-align:center;padding:6px 10px;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);color:var(--fg)"><button class="btn" type="submit" id="typeGo">בדוק</button></form>`:q.t==="click"?`<div class="clickhint">הכבישים באזור מסומנים בסגול, בלי מספרים. שמות היישובים מופיעים כדי לעזור בהתמצאות. לחץ על הכביש שלדעתך הוא ${q.r.n}.</div>`:`<div class="opts">${q.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${i+1}</span><span style="min-width:0">${o.label}</span></button>`).join("")}</div>`}<div id="fb"></div>`;
  $("quitQ").onclick=()=>Q.res.length?summary():endQuiz();if($("prevQ"))$("prevQ").onclick=()=>review(Q.i-1);
  jLayer.clearLayers();
+ if(q.m)return showQM(q);
  if(q.s)return showQS(q);
  if(q.j){netMode="hidden";drawNet();
   if(q.t==="jmap")showJunction(q.j,{name:false,zoom:13});
@@ -1064,6 +1069,20 @@ function finishS(q,ok,extra,replay){if(!replay){Q.res.push(ok);markS(ok);}hideAn
  $("fb").innerHTML=`<div class="feedback ${ok?"ok":"no"}"><strong>${ok?"נכון.":"לא הפעם."}</strong> ${extra} <b>${s.name}</b>${reg?`, ${reg}`:""}.${s.near.length?` כבישים סמוכים: ${s.near.map(n=>"כביש "+n).join(", ")}.`:""}
  <div class="rowsb" style="margin-top:12px"><span class="note">Enter ממשיך</span><button class="btn" id="nextQ" type="button">${Q.i+1<Q.qs.length?"לשאלה הבאה":"לסיכום"}</button></div></div>`;
  $("nextQ").onclick=next;$("nextQ").focus({preventScroll:true});}
+function showQM(q){netMode="hidden";drawNet();selLayer.clearLayers();selMain=null;$("mapCap").innerHTML=`<b>${q.text}</b>`;
+ q.set=q.r?[...new Set([...filtered(),q.r])]:q.j?[...new Set([...filteredJ(),q.j])]:[...new Set([...filteredS(),q.s])];
+ if(!Q.mview){Q.mview=1;   // once per round: frame the chosen area, then the view is the player's own
+  const pts=[];if(selR.size)[...selR].forEach(i=>RG.regions[i].o.forEach(r=>r.forEach(p=>pts.push(p))));
+  if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[10,10]});else map.setView([31.6,35.0],8);}}
+// the tap goes to the nearest road (or junction / settlement) of the round's selection, within reach of the finger
+map.on("click",ev=>{const q=Q&&Q.qs[Q.i];if(!q||!q.m||Q.res.length>Q.i)return;const msg=t=>{const e=$("mmsg");if(e)e.textContent=t;};
+ if(q.r){const n=nearestRoad(ev.latlng,q.set,TAP_PX*1.5);if(n==null)return msg("לא זוהה כביש בנקודה הזו. לחץ על הקו של הכביש.");
+  if(n!==q.r.n)q.pick={r:n};return finish(n===q.r.n,n!==q.r.n?`לחצת על כביש ${n}.`:"");}
+ const p=map.latLngToContainerPoint(ev.latlng),reach=TAP_PX*1.6;let best=null,bd=1e9;
+ for(const x of q.set){const d=p.distanceTo(map.latLngToContainerPoint(x.p));if(d<bd){bd=d;best=x;}}
+ if(!best||bd>reach)return msg(q.j?"לא זוהה צומת או מחלף בנקודה הזו. הגדל את המפה ולחץ בדיוק על המקום.":"לא זוהה יישוב בנקודה הזו. הגדל את המפה ולחץ על מרכז היישוב.");
+ if(q.j){if(best.id!==q.j.id)q.pick={j:best.id};return finish(best.id===q.j.id,best.id!==q.j.id?`לחצת על ${best.name}.`:"");}
+ if(best.id!==q.s.id)q.pick={s:best.id};finish(best.id===q.s.id,best.id!==q.s.id?`לחצת על ${best.name}.`:"");});
 function quizClickedJ(id){const q=Q&&Q.qs[Q.i];if(!q||q.t!=="jclick"||Q.res.length>Q.i)return;if(id!==q.j.id)q.pick={j:id};finish(id===q.j.id,id!==q.j.id?`לחצת על ${byJ[id].name}.`:"");}
 function quizClicked(n,ll){const q=Q&&Q.qs[Q.i];if(!q||q.t!=="click"||Q.res.length>Q.i)return;if(n!==q.r.n)q.pick={r:n};finish(n===q.r.n,n!==q.r.n?`לחצת על כביש ${n}.`:"");}
 function answer(i){const q=Q.qs[Q.i];if(Q.res.length>Q.i||q.t==="click"||q.t==="jclick"||!q.opts)return;const ok=q.opts[i].ok;q.chosen=i;if(!ok){const o=q.opts[i];q.pick=o.sid!=null?{s:o.sid}:o.jid!=null?{j:o.jid}:o.n!=null?{r:o.n}:null;}
