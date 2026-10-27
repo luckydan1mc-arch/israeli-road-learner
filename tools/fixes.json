@@ -27,6 +27,16 @@
         4
       ],
       "_why": "Road 4 km 162, HaHashmal St. bridge (Wikipedia junction list). Build placed the pin ~40 m east of road 4 and wrongly attached road 22 (~350 m away)."
+    },
+    "צומת סיירים": {
+      "p": [
+        29.8436,
+        34.83791
+      ],
+      "r": [
+        12
+      ],
+      "_why": "Where the access road to Camp Sayarim meets road 12; road 10 does not meet road 12 here (OSM tags the camp access road as 10)."
     }
   },
   "drop_junctions": {
@@ -276,6 +286,16 @@
         "יפתח",
         "רמות נפתלי"
       ]
+    }
+  },
+  "cut_roads": {
+    "10": {
+      "near": [
+        29.8436,
+        34.83792
+      ],
+      "km": 2.2,
+      "_why": "The last stretch from the Sayarim camp to road 12 is the camp access road, not road 10 (road 10 does not meet road 12)."
     }
   }
 }

@@ -16,6 +16,18 @@ NAMES = {k: v for k, v in FIX.get("road_names", {}).items() if not k.startswith(
 def fix_roads(roads):
     for k in DROP:
         roads.pop(k, None)
+    for k, c in FIX.get("cut_roads", {}).items():   # remove a stretch of a road: every point within c["km"] of c["near"]
+        if k not in roads: continue
+        la, lo = c["near"]; out = []
+        for line in roads[k]["g"]:
+            run = []
+            for p in line:
+                if ((p[0] - la) * 110) ** 2 + ((p[1] - lo) * 94) ** 2 <= c["km"] ** 2:
+                    if len(run) > 1: out.append(run)
+                    run = []
+                else: run.append(p)
+            if len(run) > 1: out.append(run)
+        roads[k]["g"] = out
     for k, v in NAMES.items():   # endpoint / via names set by hand
         if k in roads: roads[k].update(v)
     return roads

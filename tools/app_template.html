@@ -618,7 +618,7 @@ function filtered(){return ROADS.filter(r=>digits.has(r.dig)&&inArea(r));}
 // a junction is in the selection if one of its roads is of a selected digit level and it lies in a selected region
 // a junction counts only as a meeting of roads of the selected levels: at least two such roads must meet there
 const selRoads=j=>j.rs.filter(n=>digits.has(byN[n].dig));
-const jOK=j=>selRoads(j).length>=2;
+const jOK=j=>selRoads(j).length>=2||(j.rs.length===1&&selRoads(j).length===1);
 function filteredJ(){return JUNC.filter(j=>jOK(j)&&inArea(j));}
 let subject="roads";try{subject=localStorage.getItem("irl-subject")||"roads";}catch(e){}
 const wantR=()=>subject!=="junctions",wantJ=()=>subject!=="roads";
