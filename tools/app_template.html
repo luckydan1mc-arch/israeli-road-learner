@@ -443,6 +443,8 @@ body.mapfull .lpanel{top:calc(var(--barh,44px) + 18px)}
           <div class="seg" id="layJ"><button type="button" data-v="none">בלי</button><button type="button" data-v="i">מחלפים</button><button type="button" data-v="all">הכול</button></div>
           <div class="lph">יישובים</div>
           <div class="seg" id="layS"><button type="button" data-v="none">בלי</button><button type="button" data-v="big">ערים</button><button type="button" data-v="all">כל היישובים</button></div>
+          <div class="lph">שטחי A / B / C <span class="lkey"><i style="background:#d32f2f"></i>A <i style="background:#f9a825"></i>B <i style="background:#43a047"></i>C</span></div>
+          <div class="seg" id="layABC"><button type="button" data-v="none">בלי</button><button type="button" data-v="all">הצג</button></div>
           <div class="lph">אזורים</div>
           <div class="seg" id="layR"><button type="button" data-v="none">בלי</button><button type="button" data-v="names">שמות</button><button type="button" data-v="lines">שמות וגבולות</button></div>
           <p class="note" style="margin:10px 0 0">מוצג באזורים שבחרת בסינון. בזמן חידון השכבות מוסתרות.</p>
@@ -539,6 +541,7 @@ body.mapfull .lpanel{top:calc(var(--barh,44px) + 18px)}
 <script id="roads" type="application/json">__ROADS__</script>
 <script id="regions" type="application/json">__REGIONS__</script>
 <script id="sett" type="application/json">__SETT__</script>
+<script id="abc" type="application/json">__ABC__</script>
 <!--ONLINE-SCRIPTS-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -867,7 +870,7 @@ function makeQS(s){
  return{t:"sroad",s,n,text:`ליד איזה יישוב עובר כביש ${n}?`,opts:o.map(x=>({label:x.name,ok:x.id===s.id,sid:x.id}))};}
 /* ---------- map layers ---------- */
 const LW={1:3.6,2:3,3:2.3,4:1.7};
-let lay={rd:true,j:"none",s:"none",r:"names"};try{Object.assign(lay,JSON.parse(localStorage.getItem("irl-layers")||"{}"));}catch(e){}
+let lay={rd:true,j:"none",s:"none",r:"names",abc:"none"};try{Object.assign(lay,JSON.parse(localStorage.getItem("irl-layers")||"{}"));}catch(e){}
 delete lay.d;   // road levels on the map now follow the "which roads" filter
 const ovl=L.layerGroup().addTo(map);
 // the chosen area (regions, or the chosen councils inside a region) as shapes of even-odd rings; roads are cut to it
@@ -890,6 +893,12 @@ function clipRoad(r){if(!areaNow())return r.g;if(clipCache[r.n])return clipCache
  return clipCache[r.n]=out;}
 function setBaseShields(v){if(baseShields!==v){baseShields=v;setLabels(labelsOn);}}
 function drawOverlay(){ovl.clearLayers();if(Q){ovlRoads=[];shLayer.clearLayers();setBaseShields(true);return;}   // nothing extra on the map during a quiz round
+ // Areas A / B / C first, under everything else
+ if(lay.abc!=="none"){if(!window.ABC){try{window.ABC=JSON.parse(document.getElementById("abc").textContent);}catch(e){window.ABC={};}}
+  [["C","#43a047",.13],["B","#f9a825",.3],["A","#d32f2f",.3]].forEach(([k,col,op])=>(ABC[k]||[]).forEach(poly=>{
+   if(areaNow()){const o=poly[0];let a=90,b=180,c=-90,d=-180;o.forEach(p=>{if(p[0]<a)a=p[0];if(p[0]>c)c=p[0];if(p[1]<b)b=p[1];if(p[1]>d)d=p[1];});
+    if(!areaShapes.some(sh=>sh.some(R=>!(R.bb[2]<a||R.bb[0]>c||R.bb[3]<b||R.bb[1]>d))))return;}   // only near the chosen area
+   const pg=L.polygon(poly,{renderer:canvas,color:col,weight:1,opacity:.75,fillColor:col,fillOpacity:op});pg.bindTooltip(`שטח ${k}`,{sticky:true,direction:"top"});pg.on("click",ev=>L.DomEvent.stop(ev));ovl.addLayer(pg);}));}
  // region (district) names, optionally with their borders; only the chosen regions when the filter has some
  if(lay.r!=="none")RG.regions.forEach((g,i)=>{if(selR.size&&!selR.has(i))return;
   if(lay.r==="lines")ovl.addLayer(L.polygon(g.o,{renderer:canvas,color:"#41557a",weight:1.3,opacity:.7,dashArray:"5 5",fill:false,interactive:false}));
@@ -938,13 +947,15 @@ function renderLayers(){$("layRoads").innerHTML=[1,2,3,4].map(d=>`<button type="
  document.querySelectorAll("#layS button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===lay.s));
  document.body.classList.toggle("noreglbl",lay.r==="none");   // "בלי" also hides the blue labels of the chosen regions
  document.querySelectorAll("#layR button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===lay.r));
+ document.querySelectorAll("#layABC button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===lay.abc));
  document.querySelectorAll("#layRd button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.v==="1")===!!lay.rd));$("layRoads").style.opacity=lay.rd?"":".55";
- const n=(lay.rd?1:0)+(lay.j!=="none")+(lay.s!=="none")+(lay.r!=="none");$("layersBtn").textContent=n?`שכבות במפה (${n})`:"שכבות במפה";}
+ const n=(lay.rd?1:0)+(lay.j!=="none")+(lay.s!=="none")+(lay.r!=="none")+(lay.abc!=="none");$("layersBtn").textContent=n?`שכבות במפה (${n})`:"שכבות במפה";}
 function layersOpen(o){$("layersPanel").hidden=!o;$("layersBtn").setAttribute("aria-expanded",o);}
 $("layersBtn").onclick=()=>layersOpen($("layersPanel").hidden);$("layersClose").onclick=()=>layersOpen(false);
 $("layRoads").addEventListener("click",e=>{const b=e.target.closest("[data-ld]");if(!b)return;const d=+b.dataset.ld;if(digits.has(d)){if(digits.size>1)digits.delete(d);}else digits.add(d);renderChips();onFilter();renderLayers();});   // same as the filter chips
 $("layRd").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.rd=b.dataset.v==="1";saveLayers();renderLayers();drawOverlay();});
 $("layJ").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.j=b.dataset.v;saveLayers();renderLayers();drawOverlay();});
+$("layABC").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.abc=b.dataset.v;saveLayers();renderLayers();drawOverlay();});
 $("layR").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.r=b.dataset.v;saveLayers();renderLayers();drawOverlay();});
 $("layS").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;lay.s=b.dataset.v;saveLayers();renderLayers();drawOverlay();});
 setTimeout(()=>{renderLayers();drawOverlay();},0);
