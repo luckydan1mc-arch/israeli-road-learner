@@ -675,7 +675,12 @@ let vec=null,labelsOn=true;
 try{if(window.maplibregl&&maplibregl.getRTLTextPluginStatus()==="unavailable")maplibregl.setRTLTextPlugin("https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js",false).then(()=>{const m=vec&&vec.getMaplibreMap&&vec.getMaplibreMap();if(m)m.triggerRepaint();}).catch(()=>{});}catch(e){}
 const HE_NAME=["coalesce",["get","name:he"],["get","name:nonlatin"],["get","name"]];
 function hebrewLabels(m){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const tf=JSON.stringify(m.getLayoutProperty(l.id,"text-field")||"");
+ if(tf.includes("ref")&&(l["source-layer"]||"").startsWith("transportation")&&!REF_DONE.has(l.id)){REF_DONE.add(l.id);hideBadRefs(m,l);}
  if(tf.includes("name")&&!tf.includes("ref")&&!tf.includes("name:he"))m.setLayoutProperty(l.id,"text-field",(l["source-layer"]==="place")?NO_PS(HE_NAME):HE_NAME);});}
+const BAD_REFS=["100", "109", "152", "300", "348", "36"];   // numbers in fixes.json drop_roads
+function hideBadRefs(m,l){const f=m.getFilter(l.id),cond=["!",["in",["to-string",["get","ref"]],["literal",BAD_REFS]]];
+ try{m.setFilter(l.id,f?["all",f,cond]:cond);}catch(e){try{m.setLayoutProperty(l.id,"text-field",["case",["in",["to-string",["get","ref"]],["literal",BAD_REFS]],"",m.getLayoutProperty(l.id,"text-field")]);}catch(e2){}}}
+const REF_DONE=new Set();
 const NO_PS=tf=>["case",["any",["==",["get","iso_a2"],"PS"],["in","פלסטינ",["to-string",["coalesce",["get","name:he"],""]]],["in","Palestin",["to-string",["coalesce",["get","name:en"],["get","name"],""]]]],"",tf];
 function makeVec(){try{if(!L.maplibreGL||!window.maplibregl)return null;
   const v=L.maplibreGL({style:"https://tiles.openfreemap.org/styles/liberty",attribution:'<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © OpenStreetMap'});
