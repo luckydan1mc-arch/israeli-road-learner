@@ -798,17 +798,19 @@ function renderList(){if(subject==="junctions")return renderJList();if(subject==
   $("count").textContent=rc+" · "+$("count").textContent;$("list").innerHTML=rh+`<div class="eyebrow" style="margin:10px 0 4px">צמתים ומחלפים</div>`+$("list").innerHTML;return;}
  renderRoadList();}
 function renderRoadList(){const q=$("search").value.trim();let list=filtered();
- if(q)list=list.filter(r=>String(r.n).startsWith(q)||r.title.includes(q)||r.f.includes(q)||r.t.includes(q)||r.v.some(v=>v.includes(q)));
- $("count").textContent=`${list.length} כבישים`;
- $("list").innerHTML=list.slice(0,400).map(r=>`<button class="roaditem" type="button" data-n="${r.n}" aria-current="${r.n===cur}">${sh(r)}<span class="nm">${r.title}</span><span class="dots">${[1,2,3,4,5].map(i=>`<i class="${box(r.n)>=i?"on":""}"></i>`).join("")}</span></button>`).join("")+(list.length>400?`<p class="note">מוצגים 400 הראשונים. אפשר לצמצם בחיפוש.</p>`:"");}
+ let extraR=[],jm=[];if(q){const m=r=>String(r.n).startsWith(q)||r.title.includes(q)||r.f.includes(q)||r.t.includes(q)||r.v.some(v=>v.includes(q));list=list.filter(m);const inL=new Set(list.map(r=>r.n));
+  extraR=ROADS.filter(r=>!inL.has(r.n)&&m(r));list=list.concat(extraR);if(subject==="roads")jm=JUNC.filter(j=>j.name.includes(q)).slice(0,30);}
+ $("count").textContent=`${list.length} כבישים${extraR.length?` (${extraR.length} מחוץ לסינון)`:""}${jm.length?` · ${jm.length} צמתים ומחלפים`:""}`;
+ $("list").innerHTML=list.slice(0,400).map(r=>`<button class="roaditem" type="button" data-n="${r.n}" aria-current="${r.n===cur}">${sh(r)}<span class="nm">${r.title}</span><span class="dots">${[1,2,3,4,5].map(i=>`<i class="${box(r.n)>=i?"on":""}"></i>`).join("")}</span></button>`).join("")+(list.length>400?`<p class="note">מוצגים 400 הראשונים. אפשר לצמצם בחיפוש.</p>`:"")+jm.map(j=>`<button class="roaditem" type="button" data-j="${j.id}"><span class="nm">${j.name}</span>${jsh(j)}</button>`).join("");}
 $("list").addEventListener("click",e=>{const b=e.target.closest(".roaditem");if(!b)return;if(b.dataset.j!==undefined)selectJunction(+b.dataset.j);else selectRoad(+b.dataset.n);});
 /* ---------- junctions: study ---------- */
 let curJ=null;const jLayer=L.layerGroup().addTo(map);
 const jsh=j=>`<span class="jshields">${reqRoads(j).map(n=>sh(byN[n])).join("")}</span>`;
 const dots=v=>`<span class="dots">${[1,2,3,4,5].map(i=>`<i class="${v>=i?"on":""}"></i>`).join("")}</span>`;
 function renderJList(){const q=$("search").value.trim();let list=filteredJ().slice().sort((a,b)=>a.name.localeCompare(b.name,"he"));
- if(q)list=list.filter(j=>j.name.includes(q)||j.rs.some(n=>String(n).startsWith(q)));
- $("count").textContent=`${list.length} צמתים ומחלפים`;
+ let extraJ=[];if(q){const m=j=>j.name.includes(q)||j.rs.some(n=>String(n).startsWith(q));list=list.filter(m);const inL=new Set(list.map(j=>j.id));
+  extraJ=JUNC.filter(j=>!inL.has(j.id)&&m(j)).sort((a,b)=>a.name.localeCompare(b.name,"he"));list=list.concat(extraJ);}
+ $("count").textContent=`${list.length} צמתים ומחלפים${extraJ.length?` (${extraJ.length} מחוץ לסינון)`:""}`;
  $("list").innerHTML=list.slice(0,400).map(j=>`<button class="roaditem" type="button" data-j="${j.id}" aria-current="${j.id===curJ}"><span class="nm">${j.name}</span>${jsh(j)}${dots(jbox(j.id))}</button>`).join("")+(list.length>400?`<p class="note">מוצגים 400 הראשונים. אפשר לצמצם בחיפוש.</p>`:"");}
 // draw a junction: its roads in blue (thin) + a red point; optional name label
 function showJunction(j,{name=true,fit=true,roads=true,zoom=14}={}){selLayer.clearLayers();jLayer.clearLayers();selMain=null;

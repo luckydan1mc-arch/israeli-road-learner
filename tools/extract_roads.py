@@ -44,7 +44,7 @@ class Ways(osmium.SimpleHandler):
         ref = w.tags.get("ref")
         if not hw or not ref:
             return
-        if w.tags.get("piste:type") or w.tags.get("route") == "piste" or w.tags.get("access") in ("private", "no"):
+        if w.tags.get("piste:type") or w.tags.get("route") == "piste":   # closed roads (access=no/private, e.g. road 10 on the Egyptian border) stay: they are still numbered roads
             return
         base = hw if hw in ROAD_HW else None
         if base is None:
