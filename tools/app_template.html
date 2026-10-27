@@ -677,7 +677,7 @@ const HE_NAME=["coalesce",["get","name:he"],["get","name:nonlatin"],["get","name
 function hebrewLabels(m){(m.getStyle().layers||[]).forEach(l=>{if(l.type!=="symbol")return;const tf=JSON.stringify(m.getLayoutProperty(l.id,"text-field")||"");
  if(tf.includes("ref")&&(l["source-layer"]||"").startsWith("transportation")&&!REF_DONE.has(l.id)){REF_DONE.add(l.id);hideBadRefs(m,l);}
  if(tf.includes("name")&&!tf.includes("ref")&&!tf.includes("name:he"))m.setLayoutProperty(l.id,"text-field",(l["source-layer"]==="place")?NO_PS(HE_NAME):HE_NAME);});}
-const BAD_REFS=["100", "109", "152", "300", "348", "36"];   // numbers in fixes.json drop_roads
+const BAD_REFS=["100", "152", "300", "348", "36"];   // numbers in fixes.json drop_roads
 function hideBadRefs(m,l){const f=m.getFilter(l.id),cond=["!",["in",["to-string",["get","ref"]],["literal",BAD_REFS]]];
  try{m.setFilter(l.id,f?["all",f,cond]:cond);}catch(e){try{m.setLayoutProperty(l.id,"text-field",["case",["in",["to-string",["get","ref"]],["literal",BAD_REFS]],"",m.getLayoutProperty(l.id,"text-field")]);}catch(e2){}}}
 const REF_DONE=new Set();

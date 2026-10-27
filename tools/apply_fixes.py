@@ -10,9 +10,14 @@ FIX = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "f
 DROP = set(FIX.get("drop_roads", {}))
 
 
+NAMES = {k: v for k, v in FIX.get("road_names", {}).items() if not k.startswith("_")}
+
+
 def fix_roads(roads):
     for k in DROP:
         roads.pop(k, None)
+    for k, v in NAMES.items():   # endpoint / via names set by hand
+        if k in roads: roads[k].update(v)
     return roads
 
 

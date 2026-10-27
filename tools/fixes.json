@@ -2,7 +2,6 @@
   "_comment": "Manual corrections on top of the OpenStreetMap extract. Applied by apply_fixes.py on every build.",
   "drop_roads": {
     "100": "No road 100 in Israel - an OSM tagging error on a 1 km local street in Shefa-Amr",
-    "109": "No road 109 - 1 km stub at Eilot, tagging error",
     "152": "No road 152 - 0.3 km stub at Maoz Haim, tagging error",
     "300": "No road 300 - 0.4 km stub at Beit Hashmonai, tagging error",
     "36": "No road 36 - residential street in Salfit, tagging error",
@@ -60,5 +59,51 @@
       "מחלף שרה",
       "Same spot (81 m); OSM maps it as Sarah Interchange."
     ]
+  },
+  "road_names": {
+    "_comment": "Endpoint / via names fixed by hand after tools/prune_fragments.py removed mis-tagged pieces the old names came from.",
+    "2": {
+      "f": "חיפה",
+      "t": "תל אביב"
+    },
+    "4503": {
+      "f": "יגל",
+      "t": "כפר טרומן",
+      "v": []
+    },
+    "4777": {
+      "f": "רחלים",
+      "t": "קוסרא"
+    },
+    "3527": {
+      "f": "כרמי צור",
+      "t": "בית אומר"
+    },
+    "4556": {
+      "f": "שדה אפרים",
+      "t": "נחליאל"
+    },
+    "7911": {
+      "f": "הרדוף",
+      "t": "בית לחם הגלילית",
+      "v": [
+        "הרדוף"
+      ]
+    },
+    "437": {
+      "f": "ענאתא",
+      "t": "מישור אדומים"
+    },
+    "8676": {
+      "v": []
+    },
+    "6115": {
+      "v": [
+        "דהר אל-אבד",
+        "עכאבה",
+        "קפין",
+        "זיבדה"
+      ]
+    }
   }
 }
